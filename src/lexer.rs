@@ -1,6 +1,6 @@
 
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Token {
     Number(f32)      , // number, float 
     Identifier(String)  , // alphabetic identifier
@@ -20,21 +20,22 @@ const KEY_AS: &str  = "as";
 const KEY_END: &str = "end";
 
 #[derive(Debug)]
-pub struct TokenList{
+pub struct Lexer{
     pub tokens: Vec<Token>,
-    pub errors: Vec<String>
+    pub errors: Vec<String>,
+    idx: usize
 }
 
 type PeekIter<'a> = std::iter::Peekable<std::str::CharIndices<'a>>;
 
-impl TokenList {
+impl Lexer {
     
     pub fn new() -> Self {
-        Self { tokens: vec![], errors: vec![] }
+        Self { tokens: vec![], errors: vec![], idx: 0 }
     }
 
     fn push_token(&mut self, token: Token, input_bytes: &mut PeekIter) {
-        self.tokens.push(Token::Comma);
+        self.tokens.push(token);
         input_bytes.next();
     }
 
@@ -57,12 +58,26 @@ impl TokenList {
             .is_some_and(|x| x == true);
 
         if res && count == keyword.len() {
-            for _ in 0..keyword.len() {
-                input_bytes.next();
+            let next_char = input_string
+                .chars()
+                .skip(current_idx + count)
+                .next();
+
+            if let Some(' ') | Some('\n') |
+                   Some('\t') | Some('\r') |
+                   None = next_char 
+            {
+                for _ in 0..keyword.len() {
+                    input_bytes.next();
+                }
+                self.tokens.push(token);
+            } else {
+                self.push_identifier(input_bytes);
             }
-            self.tokens.push(token);
+
         } else {
             // possibly identifier
+            self.push_identifier(input_bytes);
         }
     }
 
@@ -76,8 +91,9 @@ impl TokenList {
         if let Some ((_, '.')) = input_bytes.peek() {
             input_bytes.next();
             collected_digits.push('.' as char);
-            while let Some((_, d @ '0'..='9')) = input_bytes.next() {
-                collected_digits.push(d);
+            while let Some((_, d @ '0'..='9')) = input_bytes.peek() {
+                collected_digits.push(*d);
+                input_bytes.next();
             }
         }
 
@@ -87,6 +103,14 @@ impl TokenList {
             Ok(n) => self.tokens.push(Token::Number(n)),
             Err(msg) => self.errors.push(msg.to_string())
         }
+
+        match input_bytes.peek() {
+            Some((_, ' ')) | Some((_, '\n')) |
+            Some((_, '\t')) | Some((_, '\r')) | 
+            None => { input_bytes.next(); },
+            Some((i, c)) => { self.errors.push(format!("Expected whitespace or number, but found '{}' at position {} during lexing.", *c, *i)); }
+        }
+        
     }
 
     fn push_identifier(&mut self, input_bytes: &mut PeekIter) {
@@ -144,8 +168,83 @@ impl TokenList {
                 },
                 
                 _ => {unreachable!()}
-            }
-            
+            }        
         } 
+    }
+
+    pub fn reset_iter(&mut self) {
+        self.idx = 0;
+    }
+
+    pub fn peek(&self, n: usize) -> Option<&Token> {
+        self.tokens.get(self.idx + n)
+    }
+
+    pub fn next(&mut self) -> Option<&Token> {
+        self.idx += 1;
+        self.tokens.get(self.idx-1)
+    }
+
+    pub fn is_at_end(&self) -> bool {
+        self.tokens.get(self.idx).is_none()
+    }
+
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn lex_definition() {
+        let input_string = "def pair as f(x, y) => f(y, x)";
+        let mut lexer = Lexer::new();
+        lexer.lex(input_string);
+
+        let iter = lexer.tokens.iter();
+        let test = vec![
+            Token::Define,
+            Token::Identifier("pair".to_string()),
+            Token::As,
+            Token::Identifier("f".to_string()),
+            Token::OpenParen,
+            Token::Identifier("x".to_string()),
+            Token::Comma,
+            Token::Identifier("y".to_string()),
+            Token::CloseParen,
+            Token::Derive,
+            Token::Identifier("f".to_string()),
+            Token::OpenParen,
+            Token::Identifier("y".to_string()),
+            Token::Comma,
+            Token::Identifier("x".to_string()),
+            Token::CloseParen
+        ];
+        assert!(iter.eq(test.iter()));
+        
+    }
+
+    #[test]
+    fn lex_keyword_combinations() {
+        let input_string = "defas enddef as";
+        let mut lexer = Lexer::new();
+        lexer.lex(input_string);
+
+        let iter = lexer.tokens.iter();
+        let test = vec![
+            Token::Identifier("defas".to_string()),
+            Token::Identifier("enddef".to_string()),
+            Token::As,
+        ];
+        assert!(iter.eq(test.iter()));
+    }
+
+    #[test]
+    fn trigger_equal_sign_and_numeric_error() {
+        let input_string = " a = 3.a";
+        let mut lexer = Lexer::new();
+        lexer.lex(input_string);
+
+        assert!(lexer.errors.len() == 2);
     }
 }
