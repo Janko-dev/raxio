@@ -2,7 +2,7 @@
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Token {
-    Number(f32)      , // number, float 
+    // Number(f32)      , // number, float 
     Identifier(String)  , // alphabetic identifier
 
     OpenParen   , // (
@@ -81,43 +81,44 @@ impl Lexer {
         }
     }
 
-    fn push_number(&mut self, input_bytes: &mut PeekIter) {
-        let mut collected_digits = String::new();
-        while let Some((_, d @ '0'..='9')) = input_bytes.peek() {
-            collected_digits.push(*d);
-            input_bytes.next();
-        }
+    // fn push_number(&mut self, input_bytes: &mut PeekIter) {
+    //     let mut collected_digits = String::new();
+    //     while let Some((_, d @ '0'..='9')) = input_bytes.peek() {
+    //         collected_digits.push(*d);
+    //         input_bytes.next();
+    //     }
 
-        if let Some ((_, '.')) = input_bytes.peek() {
-            input_bytes.next();
-            collected_digits.push('.' as char);
-            while let Some((_, d @ '0'..='9')) = input_bytes.peek() {
-                collected_digits.push(*d);
-                input_bytes.next();
-            }
-        }
+    //     if let Some ((_, '.')) = input_bytes.peek() {
+    //         input_bytes.next();
+    //         collected_digits.push('.' as char);
+    //         while let Some((_, d @ '0'..='9')) = input_bytes.peek() {
+    //             collected_digits.push(*d);
+    //             input_bytes.next();
+    //         }
+    //     }
 
-        let res = collected_digits.parse::<f32>();
+    //     let res = collected_digits.parse::<f32>();
 
-        match res {
-            Ok(n) => self.tokens.push(Token::Number(n)),
-            Err(msg) => self.errors.push(msg.to_string())
-        }
+    //     match res {
+    //         Ok(n) => self.tokens.push(Token::Number(n)),
+    //         Err(msg) => self.errors.push(msg.to_string())
+    //     }
 
-        match input_bytes.peek() {
-            Some((_, ' ')) | Some((_, '\n')) |
-            Some((_, '\t')) | Some((_, '\r')) | 
-            None => { input_bytes.next(); },
-            Some((i, c)) => { self.errors.push(format!("Expected whitespace or number, but found '{}' at position {} during lexing.", *c, *i)); }
-        }
+    //     match input_bytes.peek() {
+    //         Some((_, ' ')) | Some((_, '\n')) |
+    //         Some((_, '\t')) | Some((_, '\r')) | 
+    //         None => { input_bytes.next(); },
+    //         Some((i, c)) => { self.errors.push(format!("Expected whitespace or number, but found '{}' at position {} during lexing.", *c, *i)); }
+    //     }
         
-    }
+    // }
 
     fn push_identifier(&mut self, input_bytes: &mut PeekIter) {
         let mut lexeme = String::new();
         while let Some((_, c @ 'a'..='z')) |
                   Some((_, c @ 'A'..='Z')) |
-                  Some((_, c @ '_')) |
+                  Some((_, c @ '_')) | 
+                  Some((_, c @ '.')) |
                   Some((_, c @ '0'..='9')) = input_bytes.peek() 
         {
             lexeme.push(*c);
@@ -159,14 +160,16 @@ impl Lexer {
                     let current_idx = *i;
                     self.push_keyword(Token::End, KEY_END, &mut input_bytes, current_idx, input_string); 
                 },
-                Some((_, '0'..='9')) => {
-                    self.push_number(&mut input_bytes);
-                },
-                Some((_, 'a'..='z')) | 
+                // Some((_, '0'..='9')) => {
+                //     self.push_number(&mut input_bytes);
+                // },
+                Some((_, 'a'..='z')) | Some((_, '0'..='9')) |
                 Some((_, 'A'..='Z')) | Some((_, '_'))=> {
                     self.push_identifier(&mut input_bytes);
                 },
-                
+                Some((i, c)) => { 
+                    self.errors.push(format!("Unknown character found '{}' at position {}", *c, *i)); 
+                }
                 _ => {unreachable!()}
             }        
         } 
@@ -245,6 +248,6 @@ mod tests {
         let mut lexer = Lexer::new();
         lexer.lex(input_string);
 
-        assert!(lexer.errors.len() == 2);
+        assert!(lexer.errors.len() == 1);
     }
 }

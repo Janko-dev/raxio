@@ -1,10 +1,12 @@
+use std::fmt::Display;
+
 use crate::lexer::{Token, Lexer};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum Expr {
     Functor { iden: String, args: Vec<Expr> },
     Variable { iden: String },
-    Constant { num: f32 },
+    // Constant { num: f32 },
 }
 
 #[derive(Debug, PartialEq)]
@@ -18,6 +20,26 @@ pub enum Stmt {
 #[derive(Debug)]
 pub struct Parser {
     pub stmts: Vec<Stmt>,
+}
+
+impl Display for Expr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Expr::Variable { iden } => write!(f, "{}", iden),
+            Expr::Functor { iden, args }  => {
+                write!(f, "{}(", iden)?;
+                for (i, arg) in args.iter().enumerate() {
+                    write!(f, "{}", arg)?;
+                    if i < args.len() - 1 {
+                        write!(f, ", ")?;
+                    }
+                }
+                write!(f, ")")?;
+
+                Ok(())
+            }
+        }
+    }
 }
 
 impl Parser{
@@ -125,11 +147,11 @@ impl Parser{
                     Ok(Expr::Variable { iden })
                 }
             },
-            Some(Token::Number(num)) => {
-                let num = num.to_owned();
-                lexer.next();
-                Ok(Expr::Constant { num })
-            },
+            // Some(Token::Number(num)) => {
+            //     let num = num.to_owned();
+            //     lexer.next();
+            //     Ok(Expr::Constant { num })
+            // },
             Some(tok) => return Err(format!("Expected constant or variable, but got {:?}.", tok)),
             None => return Err(format!("Expected constant or variable, but got nothing."))
         }
