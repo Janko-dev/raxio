@@ -1,4 +1,5 @@
 use std::io::{self, Write};
+use std::{env, fs};
 
 use lexer::Lexer;
 use parser::Parser;
@@ -10,16 +11,81 @@ mod runtime;
 
 // fn main() {
 
-//     let input_string = " a = 3.a";
+//     let input_string = "
+//             f(A)
+//             f(x) => g(x, x)
+//     ";
 //     let mut lexer = Lexer::new();
 //     lexer.lex(input_string);
+    
+//     let mut parser = Parser::new();
+//     let res = parser.parse(&mut lexer);
 
-//     println!("{:?}", lexer.tokens);
-//     println!("{:?}", lexer.errors);
+//     if res.is_err() {
+//         println!("PARSING ERROR: {}", res.unwrap_err());
+//     }
+
+//     let mut env = Env::new();
+//     let res = env.interpret(parser.stmts);
+//     println!("{:?}", env.current_expr);
+//     if res.is_err() {
+//         println!("RUNTIME ERROR: {}", res.unwrap_err());
+//     }
 // }
 
 fn main() {
 
+    let mut args: Vec<String> = env::args().collect();
+
+    match args.len() {
+        1 => { start_repl(); },
+        2 => { interpret_file(args.swap_remove(1)); },
+        _ => { usage(); }
+    }
+}
+
+fn usage() {
+    println!("Usage:");
+    println!("    Provide file for interpretation");
+    println!("        $ ./raxio [FILE_NAME]");
+    println!("    When no arguments are provided, enter REPL mode");
+    println!("        $ ./raxio");
+}
+
+fn interpret_file(file_name: String) {
+    
+    let input_string = match fs::read_to_string(file_name) {
+        Ok(s) => s,
+        Err(msg) => panic!("{}", msg)
+    };
+
+    let mut env = Env::new();
+
+    let mut lexer = Lexer::new();
+    lexer.lex(&input_string);
+
+    if lexer.errors.len() > 0 {
+        for err in lexer.errors.iter() {
+            println!("TOKENIZATION ERROR: {}", err);
+        }
+    }
+
+    let mut parser = Parser::new();
+    let res = parser.parse(&mut lexer);
+
+    if res.is_err() {
+        println!("PARSING ERROR: {}", res.unwrap_err());
+    }
+    // println!("{:?}", parser.stmts);
+
+    let res = env.interpret(parser.stmts);
+    
+    if res.is_err() {
+        println!("RUNTIME ERROR: {}", res.unwrap_err());
+    }
+}
+
+fn start_repl() {
     let mut env = Env::new();
 
     loop {
@@ -71,8 +137,4 @@ fn main() {
         }
 
     }
-
-    
-
-
 }

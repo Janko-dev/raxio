@@ -1,0 +1,6 @@
+
+def diff as pow(x, n) => mul(n, pow(x, sub(n, 1)))
+
+pow(y, 2)
+    diff 0
+end

@@ -1,0 +1,20 @@
+
+f(x) = x^2
+
+pow(x, 2)
+
+lim(h, 0, div(sub(f(add(x, h)), f(x)), h))
+    f(add(x, h)) => pow(add(x, h), 2), 3
+    f(x) => pow(x, 2), 3
+
+    pow(add(x, h), 2) => add(pow(x, 2), mul(2, x, h), pow(h, 2)), 3
+
+    lim(h, 0, div(sub(add(pow(x, 2), mul(2, x, h), pow(h, 2)), pow(x, 2)), h))
+
+
+    sub(add(pow(x, 2), mul(2, x, h), pow(h, 2)), pow(x, 2))
+
+    sub(add(a, b, c), d) => add(a, b, c, neg(d))
+
+    (x + h)^2 - x^2
+    x^2 + 2xh + h^2 - x^2
