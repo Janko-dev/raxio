@@ -1,0 +1,4 @@
+def swap as pair(x, y) => pair(y, x)
+pair(A, B) 
+    swap 0
+end

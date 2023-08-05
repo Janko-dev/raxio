@@ -52,17 +52,16 @@ impl Env {
                         if self.rules.contains_key(&iden) {
                             let (left, right) = self.rules.get(&iden).unwrap();
                             // pattern match
-                            self.current_expr = Some(pattern_match(
+                            self.current_expr = Some(traverse_patterns(
                                 self.current_expr.take().unwrap(), 
                                 &left, 
                                 &right,
                                 d,
                             )?);
                             self.print_current_expr("    ");
-                            
                         }
                     } else {
-                        return Err("provide a value for the depth to traverse the matching expression.".to_string());
+                        return Err("Provide a valid and defined rule and a value for the depth to pattern match.".to_string());
                     }
                 },
                 (Stmt::DefineStmt { iden, left, right }, _) => {
@@ -70,7 +69,7 @@ impl Env {
                 },
                 (Stmt::RuleStmt { left, right, depth}, true) => {
                     // inline rule, pattern match directly on current_expr
-                    self.current_expr = Some(pattern_match(
+                    self.current_expr = Some(traverse_patterns(
                         self.current_expr.take().unwrap(), 
                         &left, 
                         &right,
@@ -78,7 +77,7 @@ impl Env {
                     )?);
                     self.print_current_expr("    ");
                 },
-                (Stmt::RuleStmt { .. }, false) => {},
+                (Stmt::RuleStmt { .. }, false) => {/* possibly educate user about using inline rule outside of matching context */},
                 (Stmt::EndStmt, true) => { 
                     self.print_current_expr("Result: ");
                     self.is_matching = false;
@@ -91,15 +90,11 @@ impl Env {
 
 }
 
-fn pattern_match(current_expr: Expr, left: &Expr, right: &Expr, depth: usize) -> Result<Expr, String>{
-    _pattern_match(current_expr, left, right, depth, 0)
-}
+fn traverse_patterns(current_expr: Expr, left: &Expr, right: &Expr, depth: usize) -> Result<Expr, String>{
 
-fn _pattern_match(current_expr: Expr, left: &Expr, right: &Expr, depth: usize, acc: usize) -> Result<Expr, String>{
-
-    if acc == depth {
-        // println!("MATCH THIS");
-        let current_expr = do_matching(current_expr, left, right)?;
+    if depth == 0 {
+        // Only match against patterns for some depth
+        let current_expr = match_patterns(current_expr, left, right)?;
         Ok(current_expr)
     } else {
         match current_expr {
@@ -107,8 +102,7 @@ fn _pattern_match(current_expr: Expr, left: &Expr, right: &Expr, depth: usize, a
             Expr::Functor { iden, args } => {
                 let mut new_args = vec![];
                 for arg in args {
-                    let expr = _pattern_match(arg, left, right, depth, acc + 1)?;
-                    // println!("{}", expr);
+                    let expr = traverse_patterns(arg, left, right, depth - 1)?;
                     new_args.push(expr);
                 }
                 Ok(Expr::Functor { 
@@ -120,7 +114,7 @@ fn _pattern_match(current_expr: Expr, left: &Expr, right: &Expr, depth: usize, a
     }
 }
 
-fn do_matching(current_expr: Expr, left: &Expr, right: &Expr) -> Result<Expr, String>{
+fn match_patterns(current_expr: Expr, left: &Expr, right: &Expr) -> Result<Expr, String>{
 
     match (current_expr, left) {
         (Expr::Variable { iden: current , ..}, 
@@ -128,7 +122,7 @@ fn do_matching(current_expr: Expr, left: &Expr, right: &Expr) -> Result<Expr, St
             if current.as_str() == lhs.as_str() {
                 Ok(right.clone())
             } else {
-                Err("Variable expression did not match lhs rule.".to_string())
+                Ok(Expr::Variable { iden: current, depth: None })
             }
         },
         (Expr::Functor { iden: current_iden, args: current_args },
@@ -145,25 +139,36 @@ fn do_matching(current_expr: Expr, left: &Expr, right: &Expr) -> Result<Expr, St
                 let res = construct_rhs(right, &args_table)?;
                 Ok(res)
             } else {
-                // Err("Functor expression did not match left hand side of rule.".to_string())
                 Ok(Expr::Functor { 
                     iden: current_iden, 
                     args: current_args 
                 })
             }
         },
-
-        // f(x)
-        // x => 
-        
-        (cur @ Expr::Variable { .. }, Expr::Functor { .. }) |
-        (cur @ Expr::Functor { .. }, Expr::Variable { .. }) => {
-            // println!("Cannot match variable expression with functor expression or vice versa.");
-            Ok(cur)
-            // Err("Cannot match variable expression with functor expression or vice versa.".to_string())
-        },
-        // (Expr::Functor { iden: current_iden, args: current_args }, 
-        //  Expr::Variable { iden: lhs_iden, .. }) => {}
+        // Cannot match variable against functor as the functor is a superset of the variable
+        // i.e., contains more information.
+        (cur @ Expr::Variable { .. }, Expr::Functor { .. }) => Ok(cur),
+        (Expr::Functor { iden: current_iden, args: current_args }, 
+        Expr::Variable { iden: lhs_iden, .. }) => {
+            // f(x)
+            // x => ..
+            let mut new_args = vec![];
+            for arg in current_args {
+                if let Expr::Variable { iden, depth } = arg {
+                    if iden.as_str() == lhs_iden.as_str() {
+                        new_args.push(right.clone());
+                    } else {
+                        new_args.push(Expr::Variable { iden, depth });
+                    }
+                } else {
+                    new_args.push(arg);
+                }
+            }
+            Ok(Expr::Functor { 
+                iden: current_iden, 
+                args: new_args 
+            })
+        }
     }
 }
 
@@ -186,20 +191,6 @@ fn construct_rhs(right: &Expr, args_table: &HashMap<Expr, Expr>) -> Result<Expr,
             for arg in args {
                 let res = construct_rhs(arg, args_table)?;
                 new_args.push(res);
-                // mul(n, pow(x, sub(n, 1)))
-                // if let Some(new_arg) = args_table.get(arg) {
-                //     // f(g(A))
-                //     // f(g(x)) => g(f(x))
-                //     // g(f(A))
-
-                //     // g(g(A))
-                    
-                //     println!("TEST, {:?}", right);
-                //     new_args.push(res);
-                // } else {
-                //     new_args.push(arg.clone());
-                //     // return Err(format!("Functor arguments of rhs do not match with arguments on lhs."));
-                // }
             }
 
             Ok(Expr::Functor { 
@@ -209,85 +200,6 @@ fn construct_rhs(right: &Expr, args_table: &HashMap<Expr, Expr>) -> Result<Expr,
         }
     }
 }
-
-// fn pattern_match(current_expr: Expr, left: &Expr, right: &Expr, depth: usize) -> Result<Expr, String>{
-//     if depth < 1 {
-//         return Ok(current_expr);
-//     }
-
-//     match (current_expr, left) {
-//         (Expr::Variable { iden: current }, 
-//          Expr::Variable { iden: lhs }) => {
-//             if current.as_str() == lhs.as_str() {
-//                 Ok(right.clone())
-//             } else {
-//                 Err("Variable expression did not match lhs rule.".to_string())
-//             }
-//         },
-//         (Expr::Functor { iden: current_iden, args: current_args },
-//          Expr::Functor { iden: lhs_iden, args: lhs_args }) => {
-//             if current_iden.as_str() == lhs_iden.as_str() &&
-//                current_args.len() == lhs_args.len()  
-//             {
-
-//                 match right {
-//                     Expr::Variable { iden } => {
-//                         Ok(Expr::Variable { iden: iden.clone() })
-//                     },
-//                     Expr::Functor { iden, args } => {
-//                         let mut args_table = HashMap::<Expr, Expr>::new();
-//                         for (lhs_arg, curr_arg) in lhs_args.iter().zip(current_args.iter())
-//                         {
-//                             // args_table.insert(lhs_arg.clone(), curr_arg.clone());
-//                             args_table.insert(
-//                                 lhs_arg.clone(),
-//                                 pattern_match(curr_arg.clone(), left, right, depth-1)?
-//                             );
-//                         }
-
-//                         let mut new_args = vec![];
-//                         for arg in args {
-//                             if let Some(new_arg) = args_table.get(arg) {
-//                                 // f(g(A))
-//                                 // f(g(x)) => g(f(x))
-//                                 // g(f(A))
-
-//                                 // g(g(A))
-//                                 new_args.push(new_arg.clone());
-//                             } else {
-//                                 return Err(format!("Functor arguments of rhs do not match with arguments on lhs."));
-//                             }
-//                         }
-
-//                         Ok(Expr::Functor { 
-//                             iden: iden.clone(), 
-//                             args: new_args 
-//                         })
-//                     }
-//                 }
-//             } else {
-//                 Err("Functor expression did not match lhs rule.".to_string())
-//             }
-//         },
-//         (Expr::Variable { .. }, Expr::Functor { .. }) | 
-//         (Expr::Functor { .. }, Expr::Variable { .. }) => {
-//             Err("Cannot match variable expression with functor expression or vice versa.".to_string())
-//         },
-//         // _ => unreachable!()
-
-//     }
-// }
-
-// > def switch as f(a, b) => f(b, a)
-// > f(1, 0)
-//   ~ switch 
-//     $ f(0, 1)
-//   ~ f(a, b) => g(f(a), f(b))
-//     $ g(f(0), f(1))
-//   ~ switch
-//     $ g(f(1), f(0))
-//   ~ end
-// > 
 
 #[cfg(test)]
 mod tests {

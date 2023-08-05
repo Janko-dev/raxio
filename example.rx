@@ -1,7 +1,5 @@
 
-f(x) = x^2
 
-pow(x, 2)
 
 lim(h, 0, div(sub(f(add(x, h)), f(x)), h))
     f(add(x, h)) => pow(add(x, h), 2), 3
@@ -9,7 +7,19 @@ lim(h, 0, div(sub(f(add(x, h)), f(x)), h))
 
     pow(add(x, h), 2) => add(pow(x, 2), mul(2, x, h), pow(h, 2)), 3
 
-    lim(h, 0, div(sub(add(pow(x, 2), mul(2, x, h), pow(h, 2)), pow(x, 2)), h))
+    lim(h, 0, 
+        div(
+            sub(
+                add(
+                    pow(x, 2), 
+                    mul(2, x, h), 
+                    pow(h, 2)
+                ), 
+                pow(x, 2)
+            ), 
+            h
+        )
+    )
 
 
     sub(add(pow(x, 2), mul(2, x, h), pow(h, 2)), pow(x, 2))

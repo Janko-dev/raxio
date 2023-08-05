@@ -76,7 +76,6 @@ fn interpret_file(file_name: String) {
     if res.is_err() {
         println!("PARSING ERROR: {}", res.unwrap_err());
     }
-    // println!("{:?}", parser.stmts);
 
     let res = env.interpret(parser.stmts);
     
@@ -133,6 +132,7 @@ fn start_repl() {
         let res = env.interpret(parser.stmts);
         if res.is_err() {
             println!("RUNTIME ERROR: {}", res.unwrap_err());
+            env.is_matching = false;
             continue;
         }
 

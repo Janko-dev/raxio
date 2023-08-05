@@ -3,6 +3,7 @@
 #[derive(Debug, PartialEq, Clone)]
 pub enum Token {
     Identifier(String)  , // alphabetic identifier
+    Number(usize)       , // unsigned integer
 
     OpenParen   , // (
     CloseParen  , // )
@@ -85,7 +86,6 @@ impl Lexer {
         while let Some((_, c @ 'a'..='z')) |
                   Some((_, c @ 'A'..='Z')) |
                   Some((_, c @ '_')) | 
-                  Some((_, c @ '.')) |
                   Some((_, c @ '0'..='9')) = input_bytes.peek() 
         {
             lexeme.push(*c);
@@ -93,6 +93,26 @@ impl Lexer {
         }
 
         self.tokens.push(Token::Identifier(lexeme));
+    }
+
+    fn push_number(&mut self, input_bytes: &mut PeekIter) {
+        let mut collected_digits = String::new();
+        while let Some((_, d @ '0'..='9')) = input_bytes.peek() {
+            collected_digits.push(*d);
+            input_bytes.next();
+        }
+        
+        match collected_digits.parse::<usize>() {
+            Ok(n) => self.tokens.push(Token::Number(n)),
+            Err(msg) => self.errors.push(msg.to_string())
+        }
+
+        // match input_bytes.peek() {
+        //     Some((_, ' ')) | Some((_, '\n')) |
+        //     Some((_, '\t')) | Some((_, '\r')) | 
+        //     None => { input_bytes.next(); },
+        //     Some((i, c)) => { self.errors.push(format!("Expected whitespace or number, but found '{}' at position {} during lexing.", *c, *i)); }
+        // }
     }
 
     pub fn lex<'a>(&mut self, input_string: &'a str) {
@@ -127,12 +147,15 @@ impl Lexer {
                     let current_idx = *i;
                     self.push_keyword(Token::End, KEY_END, &mut input_bytes, current_idx, input_string); 
                 },
-                Some((_, 'a'..='z')) | Some((_, '0'..='9')) |
-                Some((_, 'A'..='Z')) | Some((_, '_'))=> {
+                Some((_, 'a'..='z')) | Some((_, 'A'..='Z')) | Some((_, '_'))=> {
                     self.push_identifier(&mut input_bytes);
                 },
-                Some((i, c)) => { 
+                Some((_, '0'..='9')) => {
+                    self.push_number(&mut input_bytes);
+                },
+                Some((i, c)) => {
                     self.errors.push(format!("Unknown character found '{}' at position {}", *c, *i)); 
+                    input_bytes.next();
                 }
                 _ => {unreachable!()}
             }        
@@ -208,10 +231,10 @@ mod tests {
 
     #[test]
     fn trigger_equal_sign_and_numeric_error() {
-        let input_string = " a = 3.a";
+        let input_string = " a = 3a";
         let mut lexer = Lexer::new();
         lexer.lex(input_string);
 
-        assert!(lexer.errors.len() == 1);
+        assert!(lexer.errors.len() == 2);
     }
 }

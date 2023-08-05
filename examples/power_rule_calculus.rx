@@ -1,0 +1,10 @@
+
+def diff_power_rule as pow(x, n) => mul(n, pow(x, sub(n, 1)))
+def rule_2_minus_1 as sub(2, 1) => 1
+def rule_pow_1 as pow(x, 1) => x
+
+pow(y, 2)
+    diff_power_rule 0
+    rule_2_minus_1 2
+    rule_pow_1 1
+end

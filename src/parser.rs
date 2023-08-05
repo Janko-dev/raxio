@@ -105,16 +105,11 @@ impl Parser{
             lexer.next();
             let right = self.parse_expr(lexer)?;
             self.expect(Token::Comma, lexer)?;
-            // println!("{:?}, {:?}, {}", lexer.tokens, lexer.peek(0), lexer.idx);
-            if let Some(Token::Identifier(n)) = lexer.peek(0){
-                let depth = match n.parse::<usize>(){
-                    Ok(d) => d,
-                    Err(e) => return Err(format!("Parse int error: {}", e))
-                };
+            if let Some(Token::Number(n)) = lexer.peek(0){
                 self.stmts.push(Stmt::RuleStmt {
                     left, 
                     right,
-                    depth 
+                    depth: *n 
                 });
                 lexer.next();
                 Ok(())
@@ -134,45 +129,53 @@ impl Parser{
                 let iden = s.to_owned();
                 lexer.next();
                 if let Some(Token::OpenParen) = lexer.peek(0) {
-                    lexer.next();
-                    let mut args = vec![];
-                    loop {
-                        match lexer.peek(0) {
-                            Some(Token::CloseParen) => {
-                                lexer.next();
-                                break;
-                            },
-                            _ => {
-                                args.push(self.parse_expr(lexer)?);
-                                if let Some(Token::Comma) = lexer.peek(0) {
-                                    lexer.next();
-                                }
-                            }
-                        }
-                    };
-        
+                    
+                    let args = self.parse_functor_args(lexer)?;
                     Ok(Expr::Functor { 
                         iden, 
                         args
                     })
                 } else {
-                    let depth = if let Some(Token::Identifier(n)) = lexer.peek(0) {
-                        let d = match n.parse::<usize>() {
-                            Ok(d) => Some(d),
-                            Err(e) => return Err(format!("Parse int error: {}", e))
-                        };
+                    let depth = if let Some(Token::Number(n)) = lexer.peek(0) {
+                        let depth = Some(*n);
                         lexer.next();
-                        d
+                        depth
                     } else {
                         None
                     };
                     Ok(Expr::Variable { iden, depth })
                 }
             },
+            Some(Token::Number(n)) => {
+                let res = Ok(Expr::Variable { iden: n.to_string(), depth: None });
+                lexer.next();
+                res
+            }
             Some(tok) => return Err(format!("Expected constant or variable, but got {:?}.", tok)),
             None => return Err(format!("Expected constant or variable, but got nothing."))
         }
     }
+
+    fn parse_functor_args(&mut self, lexer: &mut Lexer) -> Result<Vec<Expr>, String> {
+        lexer.next();
+        let mut args = vec![];
+        loop {
+            match lexer.peek(0) {
+                Some(Token::CloseParen) => {
+                    lexer.next();
+                    break;
+                },
+                _ => {
+                    args.push(self.parse_expr(lexer)?);
+                    if let Some(Token::Comma) = lexer.peek(0) {
+                        lexer.next();
+                    }
+                }
+            }
+        };
+        Ok(args)
+    }   
+
 }
 
 #[cfg(test)]
