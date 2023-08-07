@@ -86,6 +86,8 @@ fn interpret_file(file_name: String) {
 
 fn start_repl() {
     let mut env = Env::new();
+    println!("Welcome to the REPL environment of raxio.");
+    println!("Enter \"quit\" to stop the REPL environment.");
 
     loop {
         let mut input_string = String::new();
@@ -95,8 +97,11 @@ fn start_repl() {
         io::stdout().flush().expect("Failed to flush stdout");
         io::stdin().read_line(&mut input_string).expect("Failed to read input line");
         
-        if input_string.eq("quit\n") {
-            break;
+        match &input_string.as_str() {
+            &"quit\r\n" | 
+            &"quit\n" | 
+            &"quit" => { break; },
+            _ => {}
         }
 
         if input_string.len() == 0 {
@@ -115,20 +120,12 @@ fn start_repl() {
             }
             continue;
         }
-
-        // for token in lexer.tokens.iter() {
-        //     println!("{:?}", token);
-        // }
         
         if res.is_err() {
             println!("PARSING ERROR: {}", res.unwrap_err());
             continue;
         }
 
-        // for stmt in parser.stmts.iter() {
-        //     println!("{:?}", stmt);
-        // }
-        
         let res = env.interpret(parser.stmts);
         if res.is_err() {
             println!("RUNTIME ERROR: {}", res.unwrap_err());

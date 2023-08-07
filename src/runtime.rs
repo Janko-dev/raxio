@@ -25,7 +25,7 @@ impl Env {
 
     pub fn print_prefix(&self) {
         if self.is_matching {
-            print!("    ~ ");
+            print!("    ~> ");
         } else {
             print!("> ");
         }
