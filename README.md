@@ -15,16 +15,16 @@ The application is written in Rust and used via the command line interface. The 
 ## Usage
 To build the project, install [Rust/Cargo](https://www.rust-lang.org/tools/install) and run the following in the terminal. 
 
-```console
+```bash
 $ git clone https://github.com/Janko-dev/raxio
 $ cd raxio
 $ cargo build --release 
 ``` 
 go to `target/release/` and run the `raxio` executable. Either pass a filename as the argument to interpret the entire file or pass no arguments to enter the REPL (Read-Evaluate-Print-Loop) environment. 
-```console
+```bash
 $ ./raxio [FILE_NAME] 
 ```
-```console
+```bash
 $ ./raxio
 Welcome to the REPL environment of raxio.
 Enter "quit" to stop the REPL environment.
@@ -38,15 +38,15 @@ We can create an expression by either entering the name of an identifier, which 
 This can be arbitrarily complex. For example, to denote the trivial expression $x^2$, we can choose to denote exponentiation as `pow(a, b)` where `a` is the base and `b` is the exponent. 
 
 The other, arguably more interesting part of this application, is the ability to pattern matchthe expressions that you create. The syntax to define a **rule** is as follows
-```console
+```bash
 def RULE_NAME as LEFT_HAND_SIDE_EXPR => RIGHT_HAND_SIDE_EXPR
 ```
 the `LEFT_HAND_SIDE_EXPR` will first be matched against the expression in question. If this succeeds, then the `RIGHT_HAND_SIDE_EXPR` will be used to produce the correct expression. As an example consider the simple the symbols `pair(A, B)`. We can define a rule to swap the values of `A` and `B`.
-```console
+```bash
 def swap as pair(x, y) => pair(y, x) 
 ```
 The rule is defined by the identifier `swap`. In the REPL, the following is thus derived. 
-```console
+```bash
 > def swap as pair(x, y) => pair(y, x)
 > pair(A, B) 
 Start matching: pair(A, B)
@@ -68,11 +68,11 @@ After defining `swap`, we can start pattern matching by stating an expression, i
 Consider the power rule of calculus 
 $$f(x) = x^n \rightarrow f'(x) = nx^{n-1}$$
 We can define the power rule as the following using functors.
-```console
+```bash
 def diff_power_rule as pow(x, n) => mul(n, pow(x, sub(n, 1)))
 ```
 With this rule we can symbolically show that the derivative of $y^2$ is equal to $2y$.
-```console
+```bash
 Welcome to the REPL environment of raxio.
 Enter "quit" to stop the REPL environment.
 > def diff_power_rule as pow(x, n) => mul(n, pow(x, sub(n, 1)))
@@ -94,12 +94,14 @@ Result: mul(2, y)
 ### Proof of power rule
 
 In the above example, the power rule is defined as a formula to transform an expression of exponentiation into the derivative of that expression. We can also use `raxio` to show the proof of the power rule by using the limit definition of the derivative
+
 $$
-    \lim_{h \to 0} \frac{f(x + h) - f(x)}{h} .
-$$  
+    \lim_{h \to 0} \frac{f(x + h) - f(x)}{h}
+$$
+
 If we assume $f(x) = x^2$, then we can work this out to equal $f'(x) = 2x$. Using `raxio`, we can achieve the same systematically. Albeit, readability for this example is lacking.  
 
-```console
+```bash
 > lim(h, 0, div(sub(f(add(x, h)), f(x)), h))
 Start matching: lim(h, 0, div(sub(f(add(x, h)), f(x)), h))
     ~> f(x) => pow(x, 2), 3
