@@ -65,6 +65,29 @@ Note that we simplified further by using the in-line rules, i.e., `sub(2, 1) => 
 
 A final remark on the syntax, when specifying depth, use comma during in-line pattern matching and without the comma when calling a defined rule. 
 
+### 
+> lim(h, 0, div(sub(f(add(x, h)), f(x)), h))
+Start matching: lim(h, 0, div(sub(f(add(x, h)), f(x)), h))
+    ~ f(x) => pow(x, 2), 3
+    lim(h, 0, div(sub(pow(add(x, h), 2), pow(x, 2)), h))
+    ~ pow(add(a, b), 2) => add(pow(a, 2), mul(2, a, b), pow(b, 2)), 3 
+    lim(h, 0, div(sub(add(pow(x, 2), mul(2, x, h), pow(h, 2)), pow(x, 2)), h))
+    ~ sub(add(a, b, c), d) => add(a, b, c, neg(d)), 2
+    lim(h, 0, div(add(pow(x, 2), mul(2, x, h), pow(h, 2), neg(pow(x, 2))), h))
+    ~ add(a, b, c, neg(a)) => add(b, c), 2
+    lim(h, 0, div(add(mul(2, x, h), pow(h, 2)), h))
+    ~ div(add(a, b), c) => add(div(a, c), div(b, c)), 1
+    lim(h, 0, add(div(mul(2, x, h), h), div(pow(h, 2), h)))
+    ~ div(pow(a, 2), a) => a, 2
+    lim(h, 0, add(div(mul(2, x, h), h), h))
+    ~ div(mul(2, b, a), a) => mul(2, b), 2
+    lim(h, 0, add(mul(2, x), h))
+    ~ lim(t, 0, add(a, t)) => a, 0
+    mul(2, x)
+    ~ end
+Result: mul(2, x)
+>
+
 ## Grammar
 Consider the following grammar that describes the syntax of `raxio` in a variant of [EBNF](https://en.wikipedia.org/wiki/Extended_Backus%E2%80%93Naur_form).
 

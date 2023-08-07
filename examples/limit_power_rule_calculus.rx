@@ -1,0 +1,19 @@
+
+lim(h, 0, div(sub(f(add(x, h)), f(x)), h))
+    
+    f(x) => pow(x, 2), 3
+
+    pow(add(x, h), 2) => add(pow(x, 2), mul(2, x, h), pow(h, 2)), 3
+
+    sub(add(a, b, c), d) => add(a, b, c, neg(d)), 2
+
+    add(a, b, c, neg(a)) => add(b, c), 2
+
+    div(add(a, b), c) => add(div(a, c), div(b, c)), 1
+
+    div(pow(a, 2), a) => a, 2
+
+    div(mul(2, b, a), a) => mul(2, b), 2
+
+    lim(t, 0, add(a, t)) => a, 0
+end

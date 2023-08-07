@@ -1,0 +1,8 @@
+def plus_0 as 0 => s(0)
+def plus_s as s(x) => s(s(x))
+
+0
+    plus_0 0
+    plus_s 0
+    plus_s 0
+end

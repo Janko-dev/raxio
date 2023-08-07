@@ -4,13 +4,13 @@ use crate::parser::{Expr, Stmt};
 
 
 pub struct Env {
-    // current expression that is being manipulated
+    // Context of current expression that is being manipulated.
     pub current_expr: Option<Expr>,
     
-    // true if in pattern matching state and false if in global state
+    // True if in pattern matching state and false if in global state
     pub is_matching: bool,
 
-    // rules hashmap from (string -> (Expr, Expr))
+    // Rules hashmap from (string -> (lhs-expr, rhs-expr))
     pub rules: HashMap<String, (Expr, Expr)>
 }
 
@@ -40,19 +40,26 @@ impl Env {
 
     pub fn interpret(&mut self, stmts: Vec<Stmt>) -> Result<(), String> {
 
+        // interpret each parsed statement.
         for stmt in stmts {
+            // match on a statement and global/matching state.
             match (stmt, self.is_matching) {
+                // If an expression is found, and we are not pattern matching
+                // i.e., currently still in the global state, then start pattern matching.
                 (Stmt::ExprStmt(expr), false) => {
                     self.is_matching = true;
                     self.current_expr = Some(expr);
                     self.print_current_expr("Start matching: ");
                 },
+                // If an expression is found while in pattern matching state.
                 (Stmt::ExprStmt(expr), true) => {
+                    // If the expression is a variable expression,
+                    // and the variable identifier is a rule, then pattern match on the rule.
                     if let Expr::Variable { iden, depth: Some(d)} = expr {
                         if self.rules.contains_key(&iden) {
+                            
                             let (left, right) = self.rules.get(&iden).unwrap();
-                            // pattern match
-                            self.current_expr = Some(traverse_patterns(
+                            self.current_expr = Some(ast_traverse_match(
                                 self.current_expr.take().unwrap(), 
                                 &left, 
                                 &right,
@@ -64,12 +71,13 @@ impl Env {
                         return Err("Provide a valid and defined rule and a value for the depth to pattern match.".to_string());
                     }
                 },
+                // Define statements can be constructed in either global or matching state.
                 (Stmt::DefineStmt { iden, left, right }, _) => {
                     self.rules.insert(iden, (left, right));
                 },
+                // In-line rule statements are directlt mathed upon.
                 (Stmt::RuleStmt { left, right, depth}, true) => {
-                    // inline rule, pattern match directly on current_expr
-                    self.current_expr = Some(traverse_patterns(
+                    self.current_expr = Some(ast_traverse_match(
                         self.current_expr.take().unwrap(), 
                         &left, 
                         &right,
@@ -77,7 +85,9 @@ impl Env {
                     )?);
                     self.print_current_expr("    ");
                 },
-                (Stmt::RuleStmt { .. }, false) => {/* possibly educate user about using inline rule outside of matching context */},
+                // Currently, has no effect
+                // TODO: Possibly educate user about using inline rule outside of matching context.
+                (Stmt::RuleStmt { .. }, false) => {},
                 (Stmt::EndStmt, true) => { 
                     self.print_current_expr("Result: ");
                     self.is_matching = false;
@@ -90,10 +100,12 @@ impl Env {
 
 }
 
-fn traverse_patterns(current_expr: Expr, left: &Expr, right: &Expr, depth: usize) -> Result<Expr, String>{
+// Traverse the Abstract Syntax Tree of the current expression, 
+// and match sub-expression if and only if certain depth is reached.  
+fn ast_traverse_match(current_expr: Expr, left: &Expr, right: &Expr, depth: usize) -> Result<Expr, String>{
 
     if depth == 0 {
-        // Only match against patterns for some depth
+        // Update current_expr by matching on left and producing corresponding right expression. 
         let current_expr = match_patterns(current_expr, left, right)?;
         Ok(current_expr)
     } else {
@@ -102,7 +114,7 @@ fn traverse_patterns(current_expr: Expr, left: &Expr, right: &Expr, depth: usize
             Expr::Functor { iden, args } => {
                 let mut new_args = vec![];
                 for arg in args {
-                    let expr = traverse_patterns(arg, left, right, depth - 1)?;
+                    let expr = ast_traverse_match(arg, left, right, depth - 1)?;
                     new_args.push(expr);
                 }
                 Ok(Expr::Functor { 
@@ -127,17 +139,25 @@ fn match_patterns(current_expr: Expr, left: &Expr, right: &Expr) -> Result<Expr,
         },
         (Expr::Functor { iden: current_iden, args: current_args },
          Expr::Functor { iden: lhs_iden, args: lhs_args }) => {
+            // Both functors have the same arity and the same identifier
+            // then there are considered to produce the form of the right expr. 
             if current_iden.as_str() == lhs_iden.as_str() &&
                current_args.len() == lhs_args.len()  
             {   
                 let mut args_table = HashMap::<Expr, Expr>::new();
-                for (lhs_arg, curr_arg) in lhs_args.iter().zip(current_args.iter())
-                {
-                    args_table.insert(lhs_arg.clone(), curr_arg.clone());
+                // create mapping of (lhs args) -> (current_expr args)
+                // return whether there is a match
+                let is_match = fill_pattern_mapping(&current_args, lhs_args, &mut args_table);
+                
+                if is_match {
+                    let res = construct_rhs(right, &args_table)?;
+                    Ok(res)
+                } else {
+                    Ok(Expr::Functor { 
+                        iden: current_iden, 
+                        args: current_args 
+                    })
                 }
-
-                let res = construct_rhs(right, &args_table)?;
-                Ok(res)
             } else {
                 Ok(Expr::Functor { 
                     iden: current_iden, 
@@ -146,12 +166,14 @@ fn match_patterns(current_expr: Expr, left: &Expr, right: &Expr) -> Result<Expr,
             }
         },
         // Cannot match variable against functor as the functor is a superset of the variable
-        // i.e., contains more information.
+        // i.e., contains more information. For instance, if current_expr conveys the symbol x 
+        // and we try to match the rule f(x) => g(x), then we fail to match because f(x) != x. 
         (cur @ Expr::Variable { .. }, Expr::Functor { .. }) => Ok(cur),
+
+        // In this case, we match current_expr (as a functor) against a variable.
+        // This is possible as the functor may contain sub-expressions that match the left expr.
         (Expr::Functor { iden: current_iden, args: current_args }, 
         Expr::Variable { iden: lhs_iden, .. }) => {
-            // f(x)
-            // x => ..
             let mut new_args = vec![];
             for arg in current_args {
                 if let Expr::Variable { iden, depth } = arg {
@@ -171,6 +193,42 @@ fn match_patterns(current_expr: Expr, left: &Expr, right: &Expr) -> Result<Expr,
         }
     }
 }
+
+// To fill the table of arguments, we recursively evaluate each sub-expression.
+// This function also returns a bool indicating whether it is possible to construct the right hand side.
+fn fill_pattern_mapping(cur_args: &Vec<Expr>, lhs_args: &Vec<Expr>, args_table: &mut HashMap<Expr, Expr>) -> bool {
+    
+    for (lhs_arg, cur_arg) in lhs_args.iter().zip(cur_args.iter())
+    {
+        match (lhs_arg, cur_arg) {
+            (Expr::Variable { .. }, Expr::Variable { .. } | Expr::Functor { .. }) => {
+                args_table.insert(lhs_arg.clone(), cur_arg.clone());
+            },
+            // current_expr: f(x)
+            // f(g(x)) => ..
+            (Expr::Functor { .. }, Expr::Variable { .. }) => {
+                return false;
+            },
+            (Expr::Functor { iden: lhs_iden, args: _lhs_args }, 
+             Expr::Functor { iden: cur_iden, args: _cur_args  }) => {
+                if cur_iden.as_str() == lhs_iden.as_str() &&
+                   _cur_args.len() == _lhs_args.len()
+                {
+                    match fill_pattern_mapping(_cur_args, _lhs_args, args_table) {
+                        true => {},
+                        false => { return false; }
+                    }
+                } else {
+                    // current_expr: f(h(x))
+                    // f(g(x, y)) => ..
+                    return false;
+                }
+            }
+        }
+    }
+    return true;
+}
+
 
 fn construct_rhs(right: &Expr, args_table: &HashMap<Expr, Expr>) -> Result<Expr, String> {
     
