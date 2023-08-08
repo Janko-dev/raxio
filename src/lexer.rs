@@ -107,12 +107,12 @@ impl Lexer {
             Err(msg) => self.errors.push(msg.to_string())
         }
 
-        // match input_bytes.peek() {
-        //     Some((_, ' ')) | Some((_, '\n')) |
-        //     Some((_, '\t')) | Some((_, '\r')) | 
-        //     None => { input_bytes.next(); },
-        //     Some((i, c)) => { self.errors.push(format!("Expected whitespace or number, but found '{}' at position {} during lexing.", *c, *i)); }
-        // }
+        match input_bytes.peek() {
+            Some((_, ' ')) | Some((_, '\n')) |
+            Some((_, '\t')) | Some((_, '\r')) | 
+            None => { input_bytes.next(); },
+            Some((i, c)) => { self.errors.push(format!("Expected whitespace or number, but found '{}' at position {} during lexing.", *c, *i)); }
+        }
     }
 
     pub fn lex<'a>(&mut self, input_string: &'a str) {
@@ -234,7 +234,6 @@ mod tests {
         let input_string = " a = 3a";
         let mut lexer = Lexer::new();
         lexer.lex(input_string);
-
         assert!(lexer.errors.len() == 2);
     }
 }

@@ -266,32 +266,32 @@ mod tests {
     use super::*;
     
 
-    // #[test]
-    // fn runtime_test() {
-    //     let input_string = "
-    //         f(A)
-    //         f(x) => g(x, x)
-    //         g(x, x) => g(f(x), f(x))
-
-    //     ";
-    //     let mut lexer = Lexer::new();
-    //     lexer.lex(input_string);
+    #[test]
+    fn runtime_test() {
+        let input_string = "
+            f(A)
+            f(x) => g(x, x), 0
+            g(x, x) => g(f(x), f(x)), 0
+        ";
+        let mut lexer = Lexer::new();
+        lexer.lex(input_string);
         
-    //     let mut parser = Parser::new();
-    //     let _ = parser.parse(&mut lexer);
+        let mut parser = Parser::new();
+        let _ = parser.parse(&mut lexer);
 
-    //     let mut env = Env::new();
-    //     let res = env.interpret(parser.stmts);
-    //     assert!(res.is_ok());
-    //     assert_eq!(env.current_expr, 
-    //             Some(Expr::Functor { 
-    //                 iden: "g".to_string(), 
-    //                 args: vec![
-    //                     Expr::Functor { iden: "f".to_string(), args: vec![Expr::Variable { iden: "A".to_string() }] },
-    //                     Expr::Functor { iden: "f".to_string(), args: vec![Expr::Variable { iden: "A".to_string() }] }
-    //                 ]
-    //             })
-    //     );
+        let mut env = Env::new();
+        let res = env.interpret(parser.stmts);
 
-    // }
+        assert!(res.is_ok());
+        assert_eq!(env.current_expr, 
+                Some(Expr::Functor { 
+                    iden: "g".to_string(), 
+                    args: vec![
+                        Expr::Functor { iden: "f".to_string(), args: vec![Expr::Variable { iden: "A".to_string(), depth: None }] },
+                        Expr::Functor { iden: "f".to_string(), args: vec![Expr::Variable { iden: "A".to_string(), depth: None }] }
+                    ]
+                })
+        );
+
+    }
 }
