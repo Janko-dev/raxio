@@ -7,7 +7,7 @@ Currently, the project is capable of assisting in simple mathematical proofs. Ho
 The application is written in Rust and used via the command line interface. The components of `raxio` follow the typical interpreter pipeline, i.e., lexing the input text to obtain a stream of tokens, parsing the tokens into data structures that express statements, and interpreting the statements to manipulate the state in the runtime environment.
 
 ## Todo's
-- [ ] Add in-fix math operators `+`, `-`, `*`, and `/`, during lexing and parsing that get translated to `add()`, `sub()`, `mul()`, and `div()`, respectively. Will help with readability. 
+- [x] Add in-fix math operators `+`, `-`, `*`, and `/`, during lexing and parsing that get translated to `add()`, `sub()`, `mul()`, and `div()`, respectively. Will help with readability. 
 - [ ] Maintain history of manipulated expressions with the corresponding applied rule, so that the history can be written to a file. 
 - [ ] Add string literal after end-statement indicating the path to write the derivation of the expression, i.e., to write the history. For example, the syntax would look like `end "path/to/file"`. 
 - [ ] Review and evaluate the usability of the grammar.

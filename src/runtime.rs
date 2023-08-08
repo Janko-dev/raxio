@@ -33,7 +33,10 @@ impl Env {
 
     fn print_current_expr(&self, prefix: &str) {
         match &self.current_expr {
-            Some(expr) => { println!("{}{}", prefix, expr); },
+            Some(expr) => { 
+                println!("{}{}", prefix, expr);
+                println!("{}{}", prefix, expr.to_string());
+            },
             _ => {}
         }
     }

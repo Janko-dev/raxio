@@ -13,6 +13,11 @@ pub enum Token {
     Define      , // def
     As          , // as
     End         , // end
+
+    Add         , // +
+    Sub         , // -
+    Mul         , // *
+    Div         , // /
 }
 
 const KEY_DEF: &str = "def";
@@ -27,6 +32,18 @@ pub struct Lexer{
 }
 
 type PeekIter<'a> = std::iter::Peekable<std::str::CharIndices<'a>>;
+
+impl Token {
+    pub fn to_string(&self) -> String {
+        match self {
+            Token::Add => "add".to_string(),
+            Token::Sub => "sub".to_string(),
+            Token::Mul => "mul".to_string(),
+            Token::Div => "div".to_string(),
+            _ => unimplemented!()
+        }
+    }
+}
 
 impl Lexer {
     
@@ -107,12 +124,12 @@ impl Lexer {
             Err(msg) => self.errors.push(msg.to_string())
         }
 
-        match input_bytes.peek() {
-            Some((_, ' ')) | Some((_, '\n')) |
-            Some((_, '\t')) | Some((_, '\r')) | 
-            None => { input_bytes.next(); },
-            Some((i, c)) => { self.errors.push(format!("Expected whitespace or number, but found '{}' at position {} during lexing.", *c, *i)); }
-        }
+        // match input_bytes.peek() {
+        //     Some((_, ' ')) | Some((_, '\n')) |
+        //     Some((_, '\t')) | Some((_, '\r')) | 
+        //     None => { input_bytes.next(); },
+        //     Some((i, c)) => { self.errors.push(format!("Expected whitespace or number, but found '{}' at position {} during lexing.", *c, *i)); }
+        // }
     }
 
     pub fn lex<'a>(&mut self, input_string: &'a str) {
@@ -124,6 +141,10 @@ impl Lexer {
                 Some((_, ',')) => { self.push_token(Token::Comma,      &mut input_bytes) },
                 Some((_, '(')) => { self.push_token(Token::OpenParen,  &mut input_bytes) },
                 Some((_, ')')) => { self.push_token(Token::CloseParen, &mut input_bytes) },
+                Some((_, '+')) => { self.push_token(Token::Add, &mut input_bytes) },
+                Some((_, '-')) => { self.push_token(Token::Sub, &mut input_bytes) },
+                Some((_, '*')) => { self.push_token(Token::Mul, &mut input_bytes) },
+                Some((_, '/')) => { self.push_token(Token::Div, &mut input_bytes) },
                 Some((_, '=')) => {
                     input_bytes.next();
                     if let Some((_, '>')) = input_bytes.peek() {
@@ -234,6 +255,27 @@ mod tests {
         let input_string = " a = 3a";
         let mut lexer = Lexer::new();
         lexer.lex(input_string);
-        assert!(lexer.errors.len() == 2);
+        assert!(lexer.errors.len() == 1);
+    }
+
+    #[test]
+    fn lex_infix_math_ops() {
+        let input_string = "(5 + 6) * 3-1";
+        let mut lexer = Lexer::new();
+        lexer.lex(input_string);
+        
+        let iter = lexer.tokens.iter();
+        let test = vec![
+            Token::OpenParen,
+            Token::Number(5),
+            Token::Add,
+            Token::Number(6),
+            Token::CloseParen,
+            Token::Mul,
+            Token::Number(3),
+            Token::Sub,
+            Token::Number(1),
+        ];
+        assert!(iter.eq(test.iter()));
     }
 }

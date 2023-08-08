@@ -42,6 +42,48 @@ impl Display for Expr {
     }
 }
 
+impl Expr {
+    pub fn to_string(&self) -> String {
+        match self {
+            Expr::Variable { iden, depth: Some(n) } => format!("{} depth {}", iden, n),
+            Expr::Variable { iden, depth: None } => format!("{}", iden),
+            Expr::Functor { iden, args }  => {
+                let mut res = String::new();
+                if let Some(op) = Self::get_binary_operator_str(iden.as_str()) {
+                    assert!(args.len() == 2);
+                    res.push_str(&format!("{} {} {}", &args[0].to_string(), op, &args[1].to_string()));
+                } else {
+                    if iden.as_str() == "group" {
+                        res.push('(');
+                    } else {
+                        res.push_str(&format!("{}(", iden));
+                    }
+    
+                    for (i, arg) in args.iter().enumerate() {
+                        res.push_str(&arg.to_string());
+                        if i < args.len() - 1 {
+                            res.push_str(&", ");
+                        }
+                    }
+                    res.push(')');
+                }
+                
+                res
+            }
+        }
+    }
+
+    fn get_binary_operator_str(iden: &str) -> Option<&str> {
+        match iden {
+            "add" => Some("+"),
+            "sub" => Some("-"),
+            "mul" => Some("*"),
+            "div" => Some("/"),
+            _ => None
+        }
+    }
+}
+
 impl Parser{
     pub fn new() -> Self {
         Self { stmts: vec![] }
@@ -71,9 +113,9 @@ impl Parser{
         lexer.next();
         self.expect(Token::As, lexer)?;
 
-        let left= self.parse_expr(lexer)?;
+        let left= self.parse_term(lexer)?;
         self.expect(Token::Derive, lexer)?;
-        let right= self.parse_expr(lexer)?;
+        let right= self.parse_term(lexer)?;
         
         self.stmts.push(Stmt::DefineStmt { 
             iden, 
@@ -100,10 +142,10 @@ impl Parser{
 
     fn parse_rule(&mut self, lexer: &mut Lexer) -> Result<(), String> {
         
-        let left = self.parse_expr(lexer)?;
+        let left = self.parse_term(lexer)?;
         if let Some(Token::Derive) = lexer.peek(0) {
             lexer.next();
-            let right = self.parse_expr(lexer)?;
+            let right = self.parse_term(lexer)?;
             self.expect(Token::Comma, lexer)?;
             if let Some(Token::Number(n)) = lexer.peek(0){
                 self.stmts.push(Stmt::RuleStmt {
@@ -122,9 +164,45 @@ impl Parser{
         }
     }
 
+    fn parse_term(&mut self, lexer: &mut Lexer) -> Result<Expr, String> {
+        let mut left = self.parse_factor(lexer)?;
+
+        while let Some(Token::Add) | Some(Token::Sub) = lexer.peek(0) {
+            let op = lexer.next().unwrap().clone();
+            let right = self.parse_factor(lexer)?;
+            left = Expr::Functor{
+                iden: op.to_string(),
+                args: vec![left, right]
+            };    
+        } 
+        Ok(left)
+    }
+
+    fn parse_factor(&mut self, lexer: &mut Lexer) -> Result<Expr, String> {
+        let mut left = self.parse_expr(lexer)?;
+
+        while let Some(Token::Mul) | Some(Token::Div) = lexer.peek(0) {
+            let op = lexer.next().unwrap().clone();
+            let right = self.parse_expr(lexer)?;
+            left = Expr::Functor{
+                iden: op.to_string(),
+                args: vec![left, right]
+            };    
+        } 
+        Ok(left)
+    }
+
     fn parse_expr(&mut self, lexer: &mut Lexer) -> Result<Expr, String> {
 
         match lexer.peek(0) {
+            Some(Token::OpenParen) => {
+                // group
+                let args = self.parse_functor_args(lexer)?;
+                Ok(Expr::Functor { 
+                    iden: "group".to_string(), 
+                    args
+                })
+            },
             Some(Token::Identifier(s)) => {
                 let iden = s.to_owned();
                 lexer.next();
@@ -166,7 +244,7 @@ impl Parser{
                     break;
                 },
                 _ => {
-                    args.push(self.parse_expr(lexer)?);
+                    args.push(self.parse_term(lexer)?);
                     if let Some(Token::Comma) = lexer.peek(0) {
                         lexer.next();
                     }
