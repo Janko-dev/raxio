@@ -33,7 +33,7 @@ Enter "quit" to stop the REPL environment.
 
 ## How it works
 
-We can create an expression by either entering the name of an identifier, which will act as a variable, and thus start the pattern matching environment, or we can enter an identifier and subsequently provide a comma separated list of other expressions. The latter is denoted as a functor. For example, th expression `f(x)` is a functor with identifier `f` and a single argument `x`. This form of expression is akin to the idea of an operator which performs some operation on the operands, i.e., on the arguments. 
+We can create an expression by either entering the name of an identifier, which will act as a variable, and thus start the pattern matching environment, or we can enter an identifier and subsequently provide a comma separated list of other expressions enclosed in parentheses. The latter is denoted as a functor. For example, the expression `f(x)` is a functor with identifier `f` and a single argument `x`. This form of expression is akin to the idea of an operator which performs some operation on the operands, i.e., on the arguments. 
 
 This can be arbitrarily complex. For example, to denote the trivial expression $x^2$, we can choose to denote exponentiation as `pow(a, b)` where `a` is the base and `b` is the exponent. 
 
