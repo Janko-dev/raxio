@@ -1,6 +1,6 @@
-use std::fmt::Display;
+use std::{fmt::Display, error::Error};
 
-use crate::lexer::{Token, Lexer};
+use crate::{lexer::{Token, Lexer}, error::ParsingError};
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum Expr {
@@ -13,12 +13,61 @@ pub enum Stmt {
     RuleStmt {left: Expr, right: Expr, depth: usize},
     DefineStmt {iden: String, left: Expr, right: Expr}, 
     ExprStmt(Expr),
-    EndStmt
+    EndStmt(String)
 }
 
 #[derive(Debug)]
 pub struct Parser {
     pub stmts: Vec<Stmt>,
+}
+
+macro_rules! expect {
+    ($expected_token:pat, $expected_str:expr, $lexer:expr) => {
+        {
+            let res = match $lexer.peek(0) {
+                Some(tok) => {
+                    if let $expected_token = *tok {
+                        Ok(())
+                    } else {
+                        Err(Box::new(ParsingError::ExpectToken { 
+                            expected: $expected_str, 
+                            got: Some(tok.to_string()) 
+                        }))
+                    }
+                },
+                None => {
+                    Err(Box::new(ParsingError::ExpectToken { 
+                        expected: $expected_str, 
+                        got: None 
+                    }))
+                }
+            };
+            res
+        }
+    };
+    ($expected_token:path, $lexer:expr) => {
+        {
+            let res = match $lexer.peek(0) {
+                Some(tok) => {
+                    if let $expected_token = *tok {
+                        Ok(())
+                    } else {
+                        Err(Box::new(ParsingError::ExpectToken { 
+                            expected: $expected_token.to_string(), 
+                            got: Some(tok.to_string()) 
+                        }))
+                    }
+                },
+                None => {
+                    Err(Box::new(ParsingError::ExpectToken { 
+                        expected: $expected_token.to_string(),
+                        got: None
+                    }))
+                }
+            };
+            res
+        }
+    };
 }
 
 impl Display for Expr {
@@ -88,7 +137,7 @@ impl Parser{
         Self { stmts: vec![] }
     }
 
-    pub fn parse(&mut self, lexer: &mut Lexer) -> Result<(), String>{
+    pub fn parse(&mut self, lexer: &mut Lexer) -> Result<(), Box<dyn Error>>{
         lexer.reset_iter();
         
         while !lexer.is_at_end() {
@@ -102,24 +151,40 @@ impl Parser{
         Ok(())
     }
 
-    fn parse_end_stmt(&mut self, lexer: &mut Lexer) -> Result<(), String> {
-        self.stmts.push(Stmt::EndStmt); 
+    fn parse_end_stmt(&mut self, lexer: &mut Lexer) -> Result<(), Box<dyn Error>> {
+        
         lexer.next();
+        expect!(Token::Path(_), "path".to_string(), lexer)?;
+        if let Some(Token::Path(s)) = lexer.peek(0) {
+            self.stmts.push(Stmt::EndStmt(s.to_owned()));
+            lexer.next();
+        }
         Ok(())
     }
 
-    fn parse_definition(&mut self, lexer: &mut Lexer) -> Result<(), String>{
+    fn parse_definition(&mut self, lexer: &mut Lexer) -> Result<(), Box<dyn Error>>{
         lexer.next();
         let iden = match lexer.peek(0) {
             Some(Token::Identifier(s)) => s.as_str().to_owned(),
-            Some(tok) => return Err(format!("Expected identifier after 'def', but got {:?}.", tok)),
-            None => return Err(format!("Expected identifier after 'def', but got nothing."))
+            Some(tok) => return Err(
+                Box::new(ParsingError::ExpectTokenAfter { 
+                    expected: "identifier".to_string(), 
+                    after: Token::Define.to_string(), 
+                    got: Some(tok.to_string()) 
+                })),
+            None => return Err(Box::new(ParsingError::ExpectTokenAfter { 
+                expected: "identifier".to_string(), 
+                after: Token::Define.to_string(), 
+                got: None
+            }))
         };
         lexer.next();
-        self.expect(Token::As, lexer)?;
+        expect!(Token::As, lexer)?;
+        lexer.next();
 
         let left= self.parse_term(lexer)?;
-        self.expect(Token::Derive, lexer)?;
+        expect!(Token::Derive, lexer)?;
+        lexer.next();
         let right= self.parse_term(lexer)?;
         
         self.stmts.push(Stmt::DefineStmt { 
@@ -131,27 +196,14 @@ impl Parser{
         Ok(())
     }
 
-    fn expect(&mut self, expected_token: Token, lexer: &mut Lexer) -> Result<(), String> {
-        match lexer.peek(0) {
-            Some(tok) => {
-                if *tok == expected_token {
-                    lexer.next();
-                    Ok(())
-                } else {
-                    Err(format!("Expected {:?}, but got {:?}.", expected_token, tok))
-                }
-            },
-            None => Err(format!("Expected {:?}, but got nothing.", expected_token))
-        }
-    }
-
-    fn parse_rule(&mut self, lexer: &mut Lexer) -> Result<(), String> {
+    fn parse_rule(&mut self, lexer: &mut Lexer) -> Result<(), Box<dyn Error>> {
         
         let left = self.parse_term(lexer)?;
         if let Some(Token::Derive) = lexer.peek(0) {
             lexer.next();
             let right = self.parse_term(lexer)?;
-            self.expect(Token::Comma, lexer)?;
+            expect!(Token::At, lexer)?;
+            lexer.next();
             if let Some(Token::Number(n)) = lexer.peek(0){
                 self.stmts.push(Stmt::RuleStmt {
                     left, 
@@ -161,7 +213,7 @@ impl Parser{
                 lexer.next();
                 Ok(())
             } else {
-                Err("Expected a depth value after in-line rule.".to_string())
+                Err(Box::new(ParsingError::ExpectDepthValue))
             }
         } else {
             self.stmts.push(Stmt::ExprStmt(left));
@@ -169,7 +221,7 @@ impl Parser{
         }
     }
 
-    fn parse_term(&mut self, lexer: &mut Lexer) -> Result<Expr, String> {
+    fn parse_term(&mut self, lexer: &mut Lexer) -> Result<Expr, Box<dyn Error>> {
         let mut left = self.parse_factor(lexer)?;
 
         while let Some(Token::Add) | Some(Token::Sub) = lexer.peek(0) {
@@ -183,7 +235,7 @@ impl Parser{
         Ok(left)
     }
 
-    fn parse_factor(&mut self, lexer: &mut Lexer) -> Result<Expr, String> {
+    fn parse_factor(&mut self, lexer: &mut Lexer) -> Result<Expr, Box<dyn Error>> {
         let mut left = self.parse_expr(lexer)?;
 
         while let Some(Token::Mul) | Some(Token::Div) = lexer.peek(0) {
@@ -197,7 +249,7 @@ impl Parser{
         Ok(left)
     }
 
-    fn parse_expr(&mut self, lexer: &mut Lexer) -> Result<Expr, String> {
+    fn parse_expr(&mut self, lexer: &mut Lexer) -> Result<Expr, Box<dyn Error>> {
 
         match lexer.peek(0) {
             Some(Token::OpenParen) => {
@@ -219,10 +271,29 @@ impl Parser{
                         args
                     })
                 } else {
-                    let depth = if let Some(Token::Number(n)) = lexer.peek(0) {
-                        let depth = Some(*n);
+                    let depth = if let Some(Token::At) = lexer.peek(0) {
                         lexer.next();
-                        depth
+                        match lexer.peek(0) {
+                            Some(Token::Number(n)) => {
+                                let depth = Some(*n);
+                                lexer.next();
+                                depth
+                            },
+                            Some(tok) => {
+                                return Err(Box::new(ParsingError::ExpectTokenAfter { 
+                                    expected: "number".to_string(), 
+                                    after: Token::At.to_string(), 
+                                    got: Some(tok.to_string())
+                                }));
+                            },
+                            None => {
+                                return Err(Box::new(ParsingError::ExpectTokenAfter { 
+                                    expected: "number".to_string(), 
+                                    after: Token::At.to_string(), 
+                                    got: None
+                                }));
+                            }
+                        }
                     } else {
                         None
                     };
@@ -234,12 +305,16 @@ impl Parser{
                 lexer.next();
                 res
             }
-            Some(tok) => return Err(format!("Expected constant or variable, but got {:?}.", tok)),
-            None => return Err(format!("Expected constant or variable, but got nothing."))
+            Some(tok) => Err(Box::new(ParsingError::UnexpectedToken { 
+                got: Some(tok.to_string()) 
+            })),
+            None => Err(Box::new(ParsingError::UnexpectedToken { 
+                got: None
+            }))
         }
     }
 
-    fn parse_functor_args(&mut self, lexer: &mut Lexer) -> Result<Vec<Expr>, String> {
+    fn parse_functor_args(&mut self, lexer: &mut Lexer) -> Result<Vec<Expr>, Box<dyn Error>> {
         lexer.next();
         let mut args = vec![];
         loop {
@@ -270,6 +345,8 @@ mod tests {
         let input_string = "def demorgan as neg(or(p, q)) => and(neg(p), neg(q))";
         let mut lexer = Lexer::new();
         lexer.lex(input_string);
+
+        dbg!(&lexer.tokens);
 
         let mut parser = Parser::new();
         let res = parser.parse(&mut lexer);
@@ -316,13 +393,14 @@ mod tests {
 
     #[test] 
     fn parse_multiple_stmts() {
-        let input_string = "f(x, y, z) def x as x(z) => z(x) end";
+        let input_string = "f(x, y, z) def x as x(z) => z(x) end \"hello world\"";
         let mut lexer = Lexer::new();
         lexer.lex(input_string);
 
         let mut parser = Parser::new();
         let res = parser.parse(&mut lexer);
-
+        
+        dbg!(&res);
         assert!(!res.is_err());
         assert!(parser.stmts.len() == 3);
 
@@ -348,7 +426,7 @@ mod tests {
 
         assert_eq!(
             parser.stmts[2], 
-            Stmt::EndStmt
+            Stmt::EndStmt("hello world".to_string())
         );
     }
 

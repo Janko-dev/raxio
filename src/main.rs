@@ -51,13 +51,13 @@ fn interpret_file(file_name: String) {
     let res = parser.parse(&mut lexer);
 
     if res.is_err() {
-        println!("PARSING ERROR: {}", res.unwrap_err());
+        println!("{}", res.unwrap_err());
     }
 
     let res = env.interpret(parser.stmts);
     
     if res.is_err() {
-        println!("RUNTIME ERROR: {}", res.unwrap_err());
+        println!("{}", res.unwrap_err());
     }
 }
 
@@ -104,19 +104,19 @@ fn start_repl() {
     
         if lexer.errors.len() > 0 {
             for err in lexer.errors.iter() {
-                println!("TOKENIZATION ERROR: {}", err);
+                println!("{}", err);
             }
             continue;
         }
         
         if res.is_err() {
-            println!("PARSING ERROR: {}", res.unwrap_err());
+            println!("{}", res.unwrap_err());
             continue;
         }
 
         let res = env.interpret(parser.stmts);
         if res.is_err() {
-            println!("RUNTIME ERROR: {}", res.unwrap_err());
+            println!("{}", res.unwrap_err());
             env.is_matching = false;
             continue;
         }

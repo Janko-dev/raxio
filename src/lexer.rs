@@ -45,7 +45,17 @@ impl Token {
             Token::Sub => "sub".to_string(),
             Token::Mul => "mul".to_string(),
             Token::Div => "div".to_string(),
-            _ => unimplemented!()
+            Token::Identifier(s) => format!("identifier literal '{}'", s),
+            Token::Number(n) => format!("number literal '{}'", n),
+            Token::Path(s) => format!("path literal '{}'", s),
+            Token::OpenParen => "open parenthesis ('(')".to_string(),   
+            Token::CloseParen => "closed parenthesis (')')".to_string(),  
+            Token::Comma => "comma (',')".to_string(),       
+            Token::Derive => "derive symbol ('=>')".to_string(),      
+            Token::Define => "define-keywork ('def')".to_string(),      
+            Token::As => "as-keyword ('as')".to_string(),          
+            Token::End => "end-keyword ('end')".to_string(),         
+            Token::At => "at-keyword ('at')".to_string(),    
         }
     }
 }
@@ -147,7 +157,9 @@ impl Lexer {
         while let Some((_, c @ 'a'..='z')) |
                   Some((_, c @ 'A'..='Z')) |
                   Some((_, c @ '_')) | 
-                  Some((_, c @ '0'..='9')) = input_bytes.peek() 
+                  Some((_, c @ '0'..='9')) | 
+                  Some((_, c @ ' ')) | Some((_, c @ '\n')) |
+                  Some((_, c @ '\t')) | Some((_, c @ '\r')) = input_bytes.peek() 
         {
             lexeme.push(*c);
             input_bytes.next();
@@ -160,7 +172,9 @@ impl Lexer {
             while let Some((_, c @ 'a'..='z')) |
                     Some((_, c @ 'A'..='Z')) |
                     Some((_, c @ '_')) | 
-                    Some((_, c @ '0'..='9')) = input_bytes.peek() 
+                    Some((_, c @ '0'..='9')) |
+                    Some((_, c @ ' ')) | Some((_, c @ '\n')) |
+                    Some((_, c @ '\t')) | Some((_, c @ '\r')) = input_bytes.peek() 
             {
                 lexeme.push(*c);
                 input_bytes.next();
@@ -194,8 +208,7 @@ impl Lexer {
                     input_bytes.next();
                     match input_bytes.peek() {
                         Some((_, '>')) => {
-                            self.tokens.push(Token::Derive);
-                            input_bytes.next();
+                            self.push_token(Token::Derive, &mut input_bytes);
                         },
                         Some((i, c)) => {
                             self.errors.push(Box::new(LexError::ExpectCharAfter {
@@ -204,6 +217,7 @@ impl Lexer {
                                 after: '=', 
                                 got: *c 
                             }));
+                            input_bytes.next();
                         },
                         None => {
                             self.errors.push(Box::new(LexError::ExpectCharAfter {
@@ -212,6 +226,7 @@ impl Lexer {
                                 after: '=', 
                                 got: ' ' 
                             }));
+                            input_bytes.next();
                         }
                     }
                 },
@@ -225,11 +240,10 @@ impl Lexer {
                     let current_idx = *i;
                     self.push_keyword(Token::End, KEY_END, &mut input_bytes, current_idx, input_string); 
                 },
-                Some((_, 'a')) => {
-                    input_bytes.next();
-                    match input_bytes.peek() {
-                        Some((_, 's')) => { self.push_token(Token::As, &mut input_bytes); },
-                        Some((_, 't')) => { self.push_token(Token::At, &mut input_bytes); },
+                Some((i, 'a')) => {
+                    match input_string.chars().nth(*i + 1) {
+                        Some('s') => { self.push_token(Token::As, &mut input_bytes); input_bytes.next(); },
+                        Some('t') => { self.push_token(Token::At, &mut input_bytes); input_bytes.next(); },
                         Some(_) => { self.push_identifier(&mut input_bytes); },
                         None => {} 
                     } 
@@ -350,7 +364,7 @@ mod tests {
         assert!(e.is::<LexError>());
         assert_eq!(
             *e.downcast::<LexError>().unwrap().clone(), 
-            LexError::UnterminatedStringLiteral { pos: 9 }
+            LexError::UnterminatedStringLiteralAtEnd
         );
     }
 

@@ -44,7 +44,7 @@ impl Env {
             println!("{}{}", prefix, expr.to_string());
             // For readability, also print as functor prefix notation
             if find_binary_ops(expr) {
-                println!("{:indent$}Functor notation: {}", "", expr, indent=prefix.len());
+                println!("{:indent$}As functor: {}", "", expr, indent=prefix.len());
             }
         }
     }
@@ -106,12 +106,12 @@ impl Env {
                 // Currently, has no effect
                 // TODO: Possibly educate user about using inline rule outside of matching context.
                 (Stmt::RuleStmt { .. }, false) => {},
-                (Stmt::EndStmt, true) => { 
+                (Stmt::EndStmt(s), true) => { 
                     self.print_current_expr("Result: ");
                     self.history.clear();
                     self.is_matching = false;
                 },
-                (Stmt::EndStmt, false) => { },
+                (Stmt::EndStmt(_), false) => { },
             }
         }
         Ok(())
@@ -307,8 +307,8 @@ mod tests {
     fn runtime_test() {
         let input_string = "
             f(A)
-            f(x) => g(x, x), 0
-            g(x, x) => g(f(x), f(x)), 0
+            f(x) => g(x, x) at 0
+            g(x, x) => g(f(x), f(x)) at 0
         ";
         let mut lexer = Lexer::new();
         lexer.lex(input_string);

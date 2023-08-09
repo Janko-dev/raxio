@@ -1,6 +1,5 @@
 use std::{fmt::Display, error::Error};
 
-
 #[derive(Debug, PartialEq, Clone)]
 pub enum LexError {
     UnterminatedStringLiteral { pos: usize },
@@ -28,7 +27,31 @@ impl Display for LexError {
 
 #[derive(Debug)]
 pub enum ParsingError {
-    UnterminatedStringLiteral { pos: usize },
-    ExpectCharAfter { pos: usize, expected: char, after: char, got: char },
-    UnknownChar { pos: usize, got: char}
+    ExpectToken { expected: String, got: Option<String> },
+    ExpectTokenAfter { expected: String, after: String, got: Option<String> },
+    ExpectDepthValue,
+    UnexpectedToken { got: Option<String> }
+}
+
+impl Error for ParsingError {}
+
+impl Display for ParsingError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ParsingError::ExpectToken { expected, got } => 
+                writeln!(f, "Parsing error: expected {}, but got {}", 
+                    expected, 
+                    got.clone().unwrap_or("nothing".to_string())),
+            ParsingError::ExpectTokenAfter { expected, after, got } => 
+                writeln!(f, "Parsing error: expected {} after {}, but got {}", 
+                    expected, 
+                    after, 
+                    got.clone().unwrap_or("nothing".to_string())),
+            ParsingError::ExpectDepthValue => 
+                writeln!(f, "Parsing error: expected a depth value after in-line rule"),
+            ParsingError::UnexpectedToken { got } => 
+                writeln!(f, "Parsing error: unexpected token found, got {}",
+                    got.clone().unwrap_or("nothing".to_string())),
+        }
+    }
 }
