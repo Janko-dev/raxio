@@ -1,18 +1,24 @@
 
+use std::error::Error;
+
+use super::error::LexError;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Token {
     Identifier(String)  , // alphabetic identifier
     Number(usize)       , // unsigned integer
+    Path(String)        , // "/path/to/file"
 
     OpenParen   , // (
     CloseParen  , // )
     Comma       , // ,
     Derive      , // =>
 
+
     Define      , // def
     As          , // as
     End         , // end
+    At          , // at
 
     Add         , // +
     Sub         , // -
@@ -21,13 +27,12 @@ pub enum Token {
 }
 
 const KEY_DEF: &str = "def";
-const KEY_AS: &str  = "as";
 const KEY_END: &str = "end";
 
 #[derive(Debug)]
 pub struct Lexer{
     pub tokens: Vec<Token>,
-    pub errors: Vec<String>,
+    pub errors: Vec<Box<dyn Error>>,
     pub idx: usize
 }
 
@@ -121,7 +126,7 @@ impl Lexer {
         
         match collected_digits.parse::<usize>() {
             Ok(n) => self.tokens.push(Token::Number(n)),
-            Err(msg) => self.errors.push(msg.to_string())
+            Err(msg) => self.errors.push(Box::new(msg))
         }
 
         // match input_bytes.peek() {
@@ -132,26 +137,82 @@ impl Lexer {
         // }
     }
 
+    fn push_path(&mut self, input_bytes: &mut PeekIter) {
+        input_bytes.next();
+        let mut lexeme = String::new();
+        if let Some((_, '/')) = input_bytes.peek() {
+            lexeme.push('/');
+            input_bytes.next();
+        }
+        while let Some((_, c @ 'a'..='z')) |
+                  Some((_, c @ 'A'..='Z')) |
+                  Some((_, c @ '_')) | 
+                  Some((_, c @ '0'..='9')) = input_bytes.peek() 
+        {
+            lexeme.push(*c);
+            input_bytes.next();
+        }
+
+        
+        while let Some((_, '/')) = input_bytes.peek() {
+            lexeme.push('/');
+            input_bytes.next();
+            while let Some((_, c @ 'a'..='z')) |
+                    Some((_, c @ 'A'..='Z')) |
+                    Some((_, c @ '_')) | 
+                    Some((_, c @ '0'..='9')) = input_bytes.peek() 
+            {
+                lexeme.push(*c);
+                input_bytes.next();
+            }
+        }
+
+        match input_bytes.peek() {
+            Some((_, '"')) => { self.tokens.push(Token::Path(lexeme)); },
+            Some((i, _)) => { self.errors.push(Box::new(LexError::UnterminatedStringLiteral { pos: *i })); },
+            None => { self.errors.push(Box::new(LexError::UnterminatedStringLiteralAtEnd)); }
+        }
+        input_bytes.next();
+
+    }
+
     pub fn lex<'a>(&mut self, input_string: &'a str) {
         let mut input_bytes: PeekIter = input_string.char_indices().peekable();
 
         while input_bytes.peek().is_some() {
 
             match input_bytes.peek() {
-                Some((_, ',')) => { self.push_token(Token::Comma,      &mut input_bytes) },
-                Some((_, '(')) => { self.push_token(Token::OpenParen,  &mut input_bytes) },
-                Some((_, ')')) => { self.push_token(Token::CloseParen, &mut input_bytes) },
-                Some((_, '+')) => { self.push_token(Token::Add, &mut input_bytes) },
-                Some((_, '-')) => { self.push_token(Token::Sub, &mut input_bytes) },
-                Some((_, '*')) => { self.push_token(Token::Mul, &mut input_bytes) },
-                Some((_, '/')) => { self.push_token(Token::Div, &mut input_bytes) },
+                Some((_, ',')) => { self.push_token(Token::Comma,      &mut input_bytes); },
+                Some((_, '(')) => { self.push_token(Token::OpenParen,  &mut input_bytes); },
+                Some((_, ')')) => { self.push_token(Token::CloseParen, &mut input_bytes); },
+                Some((_, '+')) => { self.push_token(Token::Add, &mut input_bytes); },
+                Some((_, '-')) => { self.push_token(Token::Sub, &mut input_bytes); },
+                Some((_, '*')) => { self.push_token(Token::Mul, &mut input_bytes); },
+                Some((_, '/')) => { self.push_token(Token::Div, &mut input_bytes); },
+                Some((_, '"')) => { self.push_path(&mut input_bytes); },
                 Some((_, '=')) => {
                     input_bytes.next();
-                    if let Some((_, '>')) = input_bytes.peek() {
-                        self.tokens.push(Token::Derive);
-                        input_bytes.next();
-                    } else {
-                        self.errors.push("Expected '>' after '=' during lexing.".to_string());
+                    match input_bytes.peek() {
+                        Some((_, '>')) => {
+                            self.tokens.push(Token::Derive);
+                            input_bytes.next();
+                        },
+                        Some((i, c)) => {
+                            self.errors.push(Box::new(LexError::ExpectCharAfter {
+                                pos: *i, 
+                                expected: '>', 
+                                after: '=', 
+                                got: *c 
+                            }));
+                        },
+                        None => {
+                            self.errors.push(Box::new(LexError::ExpectCharAfter {
+                                pos: input_string.len()-1, 
+                                expected: '>', 
+                                after: '=', 
+                                got: ' ' 
+                            }));
+                        }
                     }
                 },
                 Some((_, ' ')) | Some((_, '\t')) | 
@@ -160,13 +221,18 @@ impl Lexer {
                     let current_idx = *i;
                     self.push_keyword(Token::Define, KEY_DEF, &mut input_bytes, current_idx, input_string); 
                 },
-                Some((i, 'a')) => {
-                    let current_idx = *i;
-                    self.push_keyword(Token::As, KEY_AS, &mut input_bytes, current_idx, input_string); 
-                },
                 Some((i, 'e')) => {
                     let current_idx = *i;
                     self.push_keyword(Token::End, KEY_END, &mut input_bytes, current_idx, input_string); 
+                },
+                Some((_, 'a')) => {
+                    input_bytes.next();
+                    match input_bytes.peek() {
+                        Some((_, 's')) => { self.push_token(Token::As, &mut input_bytes); },
+                        Some((_, 't')) => { self.push_token(Token::At, &mut input_bytes); },
+                        Some(_) => { self.push_identifier(&mut input_bytes); },
+                        None => {} 
+                    } 
                 },
                 Some((_, 'a'..='z')) | Some((_, 'A'..='Z')) | Some((_, '_'))=> {
                     self.push_identifier(&mut input_bytes);
@@ -175,7 +241,10 @@ impl Lexer {
                     self.push_number(&mut input_bytes);
                 },
                 Some((i, c)) => {
-                    self.errors.push(format!("Unknown character found '{}' at position {}", *c, *i)); 
+                    self.errors.push(Box::new(LexError::UnknownChar { 
+                        pos: *i, 
+                        got: *c 
+                    })); 
                     input_bytes.next();
                 }
                 _ => {unreachable!()}
@@ -252,10 +321,37 @@ mod tests {
 
     #[test]
     fn trigger_equal_sign_and_numeric_error() {
-        let input_string = " a = 3a";
+        let input_string = " a = a + a";
         let mut lexer = Lexer::new();
         lexer.lex(input_string);
+
         assert!(lexer.errors.len() == 1);
+        let e = lexer.errors.swap_remove(0);
+        assert!(e.is::<LexError>());
+        assert_eq!(
+            *e.downcast::<LexError>().unwrap().clone(), 
+            LexError::ExpectCharAfter { 
+                pos: 4, 
+                expected: '>', 
+                after: '=', 
+                got: ' ' 
+            }
+        );
+    }
+
+    #[test]
+    fn trigger_unterminated_string_literal_error() {
+        let input_string = "abc \"path ";
+        let mut lexer = Lexer::new();
+        lexer.lex(input_string);
+        dbg!(&lexer.errors);
+        assert!(lexer.errors.len() == 1);
+        let e = lexer.errors.swap_remove(0);
+        assert!(e.is::<LexError>());
+        assert_eq!(
+            *e.downcast::<LexError>().unwrap().clone(), 
+            LexError::UnterminatedStringLiteral { pos: 9 }
+        );
     }
 
     #[test]

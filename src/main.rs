@@ -8,30 +8,7 @@ use runtime::Env;
 mod lexer;
 mod parser;
 mod runtime;
-
-// fn main() {
-
-//     let input_string = "
-//             f(A)
-//             f(x) => g(x, x)
-//     ";
-//     let mut lexer = Lexer::new();
-//     lexer.lex(input_string);
-    
-//     let mut parser = Parser::new();
-//     let res = parser.parse(&mut lexer);
-
-//     if res.is_err() {
-//         println!("PARSING ERROR: {}", res.unwrap_err());
-//     }
-
-//     let mut env = Env::new();
-//     let res = env.interpret(parser.stmts);
-//     println!("{:?}", env.current_expr);
-//     if res.is_err() {
-//         println!("RUNTIME ERROR: {}", res.unwrap_err());
-//     }
-// }
+mod error;
 
 fn main() {
 
@@ -66,7 +43,7 @@ fn interpret_file(file_name: String) {
 
     if lexer.errors.len() > 0 {
         for err in lexer.errors.iter() {
-            println!("TOKENIZATION ERROR: {}", err);
+            println!("{}", err);
         }
     }
 

@@ -94,11 +94,17 @@ impl Parser{
         while !lexer.is_at_end() {
             match lexer.peek(0) {
                 Some(Token::Define) => { self.parse_definition(lexer)?; },
-                Some(Token::End) => { self.stmts.push(Stmt::EndStmt); lexer.next(); },
+                Some(Token::End) => { self.parse_end_stmt(lexer)?; },
                 Some(_) => { self.parse_rule(lexer)?; },
                 _ => unreachable!()
             }
         }
+        Ok(())
+    }
+
+    fn parse_end_stmt(&mut self, lexer: &mut Lexer) -> Result<(), String> {
+        self.stmts.push(Stmt::EndStmt); 
+        lexer.next();
         Ok(())
     }
 

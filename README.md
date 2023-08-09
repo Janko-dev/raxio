@@ -137,7 +137,7 @@ Stmt         := Rule   |
                 "undo" |
                 "help" ; 
 
-Rule         := Expr "=>" Expr "," Number;
+Rule         := Expr "=>" Expr "at" Number;
 Define       := "def" Identifier "as" Expr "=>" Expr ;
 Expr         := FunctorExpr | 
                 VariableExpr ;
@@ -146,7 +146,7 @@ End          := "end" Path ;
 Path         := "\"" ("/")? String ("/" String)* "\"" ;
 
 FunctorExpr  := Identifier "(" (Expr ",")* ")" ;
-VariableExpr := Identifier (Number)?;
+VariableExpr := Identifier ("at" Number)?;
 
 Number       := ("0"-"9") ("0"-"9")* ;
 Char         := ("a"-"z" | "A"-"Z" | "_" )
