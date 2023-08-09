@@ -88,6 +88,8 @@ fn start_repl() {
     let mut env = Env::new();
     println!("Welcome to the REPL environment of raxio.");
     println!("Enter \"quit\" to stop the REPL environment.");
+    println!("Enter \"help\" to see an overview of raxio syntax.");
+    println!("Enter \"undo\" during mattern patching to undo the current expression.");
 
     loop {
         let mut input_string = String::new();
@@ -101,6 +103,15 @@ fn start_repl() {
             &"quit\r\n" | 
             &"quit\n" | 
             &"quit" => { break; },
+            &"help\r\n" | 
+            &"help\n" | 
+            &"help" => { print_help(); continue; },
+            &"undo\r\n" | 
+            &"undo\n" | 
+            &"undo" => { 
+                env.pop_expr();
+                continue;
+            },
             _ => {}
         }
 
@@ -134,4 +145,23 @@ fn start_repl() {
         }
 
     }
+}
+
+fn print_help() {
+    println!("Raxio syntax:");
+    println!("To define a rule, use");
+    println!("    - def [YOUR_RULE_NAME] as [LEFT_EXPR] => [RIGHT_EXPR]");
+    println!("      YOUR_RULE_NAME is an alphanumeric identifier.");
+    println!("      LEFT_EXPR is the expression to match against.");
+    println!("      RIGHT_EXPR is the expression to produce if left expression was matched.\n");
+    println!("To start pattern matching an expression, use either");
+    println!("    - a variable, e.g., x, foo, abc, etc.; or");
+    println!("    - a functor, e.g., f(x), g(h(x, y)), foo(bar(baz)), etc.; or");
+    println!("    - binary mathematical in-fix operations, '+', '-', '*', '/'.");
+    println!("      e.g., a + b (which gets translated to the functor add(a, b))\n");
+    println!("To apply a rule during pattern matching of expession, enter either");
+    println!("    - predefined identifier of a rule followed a number indicating at which depth to apply the rule");
+    println!("      e.g., [YOUR_RULE_NAME] at [DEPTH]; or");
+    println!("    - an in-line rule without an identifier followed by a number indicating at which depth to apply the rule");
+    println!("      e.g., [LEFT_EXPR] => [RIGHT_EXPR] at [DEPTH]\n");
 }

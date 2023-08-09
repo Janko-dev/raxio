@@ -129,20 +129,27 @@ Result: mul(2, x)
 Consider the following grammar that describes the syntax of `raxio` in a variant of [EBNF](https://en.wikipedia.org/wiki/Extended_Backus%E2%80%93Naur_form).
 
 ```ebnf
-Stmt         := Rule | 
+Stmt         := Rule   | 
                 Define | 
-                Expr |
-                End ; 
+                Expr   |
+                End    |
+                "quit" |
+                "undo" |
+                "help" ; 
 
 Rule         := Expr "=>" Expr "," Number;
 Define       := "def" Identifier "as" Expr "=>" Expr ;
 Expr         := FunctorExpr | 
                 VariableExpr ;
-End          := "end" ;  
+End          := "end" Path ;
+
+Path         := "\"" ("/")? String ("/" String)* "\"" ;
 
 FunctorExpr  := Identifier "(" (Expr ",")* ")" ;
 VariableExpr := Identifier (Number)?;
 
 Number       := ("0"-"9") ("0"-"9")* ;
-Identifier   := ("a"-"z" | "A"-"Z" | "_" ) ("a"-"z" | "A"-"Z" | "_" | Number)* ;
+Char         := ("a"-"z" | "A"-"Z" | "_" )
+String       := Char*
+Identifier   := Char (Char | Number)* ;
 ```

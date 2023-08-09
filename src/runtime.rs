@@ -4,8 +4,8 @@ use crate::parser::{Expr, Stmt};
 
 
 pub struct Env {
-    // Context of current expression that is being manipulated.
-    pub current_expr: Option<Expr>,
+    // History of all expressions after applying transformations.
+    pub history: Vec<Expr>,
     
     // True if in pattern matching state and false if in global state
     pub is_matching: bool,
@@ -17,7 +17,7 @@ pub struct Env {
 impl Env {
     pub fn new() -> Self {
         Self { 
-            current_expr: None, 
+            history: vec![],
             is_matching: false, 
             rules: HashMap::new() 
         }
@@ -31,15 +31,30 @@ impl Env {
         }
     }
 
-    fn print_current_expr(&self, prefix: &str) {
-        match &self.current_expr {
-            Some(expr) => { 
-                println!("{}{}", prefix, expr);
-                println!("{}{}", prefix, expr.to_string());
-            },
-            _ => {}
+    fn get_expr(&self) -> Option<&Expr> {
+        if self.history.len() == 0 {
+            None
+        } else {
+            self.history.get(self.history.len()-1)
         }
     }
+
+    pub fn print_current_expr(&self, prefix: &str) {
+        if let Some(expr) = self.get_expr() {
+            println!("{}{}", prefix, expr.to_string());
+            // For readability, also print as functor prefix notation
+            if find_binary_ops(expr) {
+                println!("{:indent$}Functor notation: {}", "", expr, indent=prefix.len());
+            }
+        }
+    }
+
+    pub fn pop_expr(&mut self) {
+        if self.history.len() > 1 {
+            self.history.pop();
+            self.print_current_expr("    ");
+        }
+    } 
 
     pub fn interpret(&mut self, stmts: Vec<Stmt>) -> Result<(), String> {
 
@@ -51,8 +66,8 @@ impl Env {
                 // i.e., currently still in the global state, then start pattern matching.
                 (Stmt::ExprStmt(expr), false) => {
                     self.is_matching = true;
-                    self.current_expr = Some(expr);
-                    self.print_current_expr("Start matching: ");
+                    self.history.push(expr);
+                    self.print_current_expr("Start matching on: ");
                 },
                 // If an expression is found while in pattern matching state.
                 (Stmt::ExprStmt(expr), true) => {
@@ -62,8 +77,8 @@ impl Env {
                         if self.rules.contains_key(&iden) {
                             
                             let (left, right) = self.rules.get(&iden).unwrap();
-                            self.current_expr = Some(ast_traverse_match(
-                                self.current_expr.take().unwrap(), 
+                            self.history.push(ast_traverse_match(
+                                self.get_expr().unwrap().clone(), 
                                 &left, 
                                 &right,
                                 d,
@@ -80,8 +95,8 @@ impl Env {
                 },
                 // In-line rule statements are directlt mathed upon.
                 (Stmt::RuleStmt { left, right, depth}, true) => {
-                    self.current_expr = Some(ast_traverse_match(
-                        self.current_expr.take().unwrap(), 
+                    self.history.push(ast_traverse_match(
+                        self.get_expr().unwrap().clone(), 
                         &left, 
                         &right,
                         depth,
@@ -93,6 +108,7 @@ impl Env {
                 (Stmt::RuleStmt { .. }, false) => {},
                 (Stmt::EndStmt, true) => { 
                     self.print_current_expr("Result: ");
+                    self.history.clear();
                     self.is_matching = false;
                 },
                 (Stmt::EndStmt, false) => { },
@@ -262,6 +278,24 @@ fn construct_rhs(right: &Expr, args_table: &HashMap<Expr, Expr>) -> Result<Expr,
     }
 }
 
+fn find_binary_ops(expr: &Expr) -> bool {
+    match expr {
+        Expr::Variable { .. } => false,
+        Expr::Functor { iden, args } => {
+            if args.len() == 2 && Expr::get_binary_operator_str(iden.as_str()).is_some() {
+                true
+            } else {
+                for arg in args.iter() {
+                    if find_binary_ops(arg) {
+                        return true;
+                    }
+                }
+                false
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::lexer::*;
@@ -286,8 +320,8 @@ mod tests {
         let res = env.interpret(parser.stmts);
 
         assert!(res.is_ok());
-        assert_eq!(env.current_expr, 
-                Some(Expr::Functor { 
+        assert_eq!(env.get_expr(), 
+                Some(&Expr::Functor { 
                     iden: "g".to_string(), 
                     args: vec![
                         Expr::Functor { iden: "f".to_string(), args: vec![Expr::Variable { iden: "A".to_string(), depth: None }] },

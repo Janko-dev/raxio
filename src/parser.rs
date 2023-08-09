@@ -49,8 +49,7 @@ impl Expr {
             Expr::Variable { iden, depth: None } => format!("{}", iden),
             Expr::Functor { iden, args }  => {
                 let mut res = String::new();
-                if let Some(op) = Self::get_binary_operator_str(iden.as_str()) {
-                    assert!(args.len() == 2);
+                if let (Some(op), 2) = (Self::get_binary_operator_str(iden.as_str()), args.len()) {
                     res.push_str(&format!("{} {} {}", &args[0].to_string(), op, &args[1].to_string()));
                 } else {
                     if iden.as_str() == "group" {
@@ -73,7 +72,7 @@ impl Expr {
         }
     }
 
-    fn get_binary_operator_str(iden: &str) -> Option<&str> {
+    pub fn get_binary_operator_str(iden: &str) -> Option<&str> {
         match iden {
             "add" => Some("+"),
             "sub" => Some("-"),
