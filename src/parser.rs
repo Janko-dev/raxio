@@ -5,7 +5,7 @@ use crate::{lexer::{Token, Lexer}, error::ParsingError};
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum Expr {
     Functor { iden: String, args: Vec<Expr> },
-    Variable { iden: String, depth: Option<usize> },
+    Variable { iden: String },
 }
 
 #[derive(Debug, PartialEq)]
@@ -13,6 +13,7 @@ pub enum Stmt {
     RuleStmt {left: Expr, right: Expr, depth: usize},
     DefineStmt {iden: String, left: Expr, right: Expr}, 
     ExprStmt(Expr),
+    ApplyStmt { iden: String, depth: usize },
     EndStmt(Option<String>)
 }
 
@@ -73,8 +74,7 @@ macro_rules! expect {
 impl Display for Expr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Expr::Variable { iden, depth: Some(n) } => write!(f, "{} depth {}", iden, n),
-            Expr::Variable { iden, depth: None } => write!(f, "{}", iden),
+            Expr::Variable { iden } => write!(f, "{}", iden),
             Expr::Functor { iden, args }  => {
                 write!(f, "{}(", iden)?;
                 for (i, arg) in args.iter().enumerate() {
@@ -94,8 +94,7 @@ impl Display for Expr {
 impl Expr {
     pub fn to_string(&self) -> String {
         match self {
-            Expr::Variable { iden, depth: Some(n) } => format!("{} depth {}", iden, n),
-            Expr::Variable { iden, depth: None } => format!("{}", iden),
+            Expr::Variable { iden } => format!("{}", iden),
             Expr::Functor { iden, args }  => {
                 let mut res = String::new();
                 if let (Some(op), 2) = (Self::get_binary_operator_str(iden.as_str()), args.len()) {
@@ -144,11 +143,33 @@ impl Parser{
             match lexer.peek(0) {
                 Some(Token::Define) => { self.parse_definition(lexer)?; },
                 Some(Token::End) => { self.parse_end_stmt(lexer)?; },
+                Some(Token::Apply) => { self.parse_apply_stmt(lexer)?; },
                 Some(_) => { self.parse_rule(lexer)?; },
                 _ => unreachable!()
             }
         }
         Ok(())
+    }
+
+    fn parse_apply_stmt(&mut self, lexer: &mut Lexer) -> Result<(), Box<dyn Error>> {
+    
+        lexer.next();
+        expect!(Token::Identifier(_), "identifier".to_string(), lexer)?;
+        let Token::Identifier(iden) = lexer.next().unwrap().clone() else { unreachable!(); };
+        expect!(Token::At, lexer)?;
+        lexer.next();
+        if let Some(Token::Number(n)) = lexer.peek(0){
+            self.stmts.push(
+                Stmt::ApplyStmt { 
+                    iden, 
+                    depth: *n
+                }
+            );
+            lexer.next();
+            Ok(())
+        } else {
+            Err(Box::new(ParsingError::ExpectDepthValue))
+        }
     }
 
     fn parse_end_stmt(&mut self, lexer: &mut Lexer) -> Result<(), Box<dyn Error>> {
@@ -274,37 +295,37 @@ impl Parser{
                         args
                     })
                 } else {
-                    let depth = if let Some(Token::At) = lexer.peek(0) {
-                        lexer.next();
-                        match lexer.peek(0) {
-                            Some(Token::Number(n)) => {
-                                let depth = Some(*n);
-                                lexer.next();
-                                depth
-                            },
-                            Some(tok) => {
-                                return Err(Box::new(ParsingError::ExpectTokenAfter { 
-                                    expected: "number".to_string(), 
-                                    after: Token::At.to_string(), 
-                                    got: Some(tok.to_string())
-                                }));
-                            },
-                            None => {
-                                return Err(Box::new(ParsingError::ExpectTokenAfter { 
-                                    expected: "number".to_string(), 
-                                    after: Token::At.to_string(), 
-                                    got: None
-                                }));
-                            }
-                        }
-                    } else {
-                        None
-                    };
-                    Ok(Expr::Variable { iden, depth })
+                    // let depth = if let Some(Token::At) = lexer.peek(0) {
+                    //     lexer.next();
+                    //     match lexer.peek(0) {
+                    //         Some(Token::Number(n)) => {
+                    //             let depth = Some(*n);
+                    //             lexer.next();
+                    //             depth
+                    //         },
+                    //         Some(tok) => {
+                    //             return Err(Box::new(ParsingError::ExpectTokenAfter { 
+                    //                 expected: "number".to_string(), 
+                    //                 after: Token::At.to_string(), 
+                    //                 got: Some(tok.to_string())
+                    //             }));
+                    //         },
+                    //         None => {
+                    //             return Err(Box::new(ParsingError::ExpectTokenAfter { 
+                    //                 expected: "number".to_string(), 
+                    //                 after: Token::At.to_string(), 
+                    //                 got: None
+                    //             }));
+                    //         }
+                    //     }
+                    // } else {
+                    //     None
+                    // };
+                    Ok(Expr::Variable { iden })
                 }
             },
             Some(Token::Number(n)) => {
-                let res = Ok(Expr::Variable { iden: n.to_string(), depth: None });
+                let res = Ok(Expr::Variable { iden: n.to_string() });
                 lexer.next();
                 res
             }
@@ -365,8 +386,8 @@ mod tests {
                     Expr::Functor {
                         iden: "or".to_string(), 
                         args: vec![
-                            Expr::Variable { iden: "p".to_string(), depth: None },
-                            Expr::Variable { iden: "q".to_string(), depth: None }
+                            Expr::Variable { iden: "p".to_string() },
+                            Expr::Variable { iden: "q".to_string() }
                         ]
                     }
                 ] 
@@ -377,13 +398,13 @@ mod tests {
                     Expr::Functor {
                         iden: "neg".to_string(), 
                         args: vec![
-                            Expr::Variable { iden: "p".to_string(), depth: None }
+                            Expr::Variable { iden: "p".to_string() }
                         ]
                     },
                     Expr::Functor {
                         iden: "neg".to_string(), 
                         args: vec![
-                            Expr::Variable { iden: "q".to_string(), depth: None }
+                            Expr::Variable { iden: "q".to_string() }
                         ]
                     },
                 ] 
@@ -412,9 +433,9 @@ mod tests {
             Stmt::ExprStmt(Expr::Functor { 
                 iden: "f".to_string(), 
                 args: vec![
-                    Expr::Variable { iden: "x".to_string(), depth: None },
-                    Expr::Variable { iden: "y".to_string(), depth: None },
-                    Expr::Variable { iden: "z".to_string(), depth: None }
+                    Expr::Variable { iden: "x".to_string() },
+                    Expr::Variable { iden: "y".to_string() },
+                    Expr::Variable { iden: "z".to_string() }
                 ]
             })
         );
@@ -422,8 +443,8 @@ mod tests {
             parser.stmts[1], 
             Stmt::DefineStmt { 
                 iden: "x".to_string(), 
-                left:  Expr::Functor { iden: "x".to_string(), args: vec![Expr::Variable { iden: "z".to_string(), depth: None }] }, 
-                right: Expr::Functor { iden: "z".to_string(), args: vec![Expr::Variable { iden: "x".to_string(), depth: None }] }, 
+                left:  Expr::Functor { iden: "x".to_string(), args: vec![Expr::Variable { iden: "z".to_string() }] }, 
+                right: Expr::Functor { iden: "z".to_string(), args: vec![Expr::Variable { iden: "x".to_string() }] }, 
             }
         );
 
@@ -442,7 +463,7 @@ mod tests {
         let mut parser = Parser::new();
         let res = parser.parse(&mut lexer);
 
-        assert!(res.is_err());
+        assert!(res.is_err());//
     }
 
     #[test]

@@ -19,6 +19,7 @@ pub enum Token {
     As          , // as
     End         , // end
     At          , // at
+    Apply       , // apply
 
     Add         , // +
     Sub         , // -
@@ -28,6 +29,7 @@ pub enum Token {
 
 const KEY_DEF: &str = "def";
 const KEY_END: &str = "end";
+const KEY_APP: &str = "apply";
 
 #[derive(Debug)]
 pub struct Lexer{
@@ -55,7 +57,8 @@ impl Token {
             Token::Define => "define-keywork ('def')".to_string(),      
             Token::As => "as-keyword ('as')".to_string(),          
             Token::End => "end-keyword ('end')".to_string(),         
-            Token::At => "at-keyword ('at')".to_string(),    
+            Token::At => "at-keyword ('at')".to_string(),  
+            Token::Apply => "apply-keyword ('apply')".to_string(),    
         }
     }
 }
@@ -244,6 +247,10 @@ impl Lexer {
                     match input_string.chars().nth(*i + 1) {
                         Some('s') => { self.push_token(Token::As, &mut input_bytes); input_bytes.next(); },
                         Some('t') => { self.push_token(Token::At, &mut input_bytes); input_bytes.next(); },
+                        Some('p') => { 
+                            let current_idx = *i;
+                            self.push_keyword(Token::Apply, KEY_APP, &mut input_bytes, current_idx, input_string);
+                        },
                         Some(_) => { self.push_identifier(&mut input_bytes); },
                         None => { input_bytes.next(); }
                     } 

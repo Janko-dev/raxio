@@ -4,7 +4,7 @@ def rule_2_minus_1 as sub(2, 1) => 1
 def rule_pow_1 as pow(x, 1) => x
 
 pow(y, 2)
-    diff_power_rule 0
-    rule_2_minus_1 2
-    rule_pow_1 1
+    apply diff_power_rule at 0
+    apply rule_2_minus_1 at 2
+    apply rule_pow_1 at 1
 end

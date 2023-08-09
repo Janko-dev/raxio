@@ -1,10 +1,10 @@
 # Raxio
 
-`raxio` is a domain specific language (DSL) that allows for symbolic pattern matching. At its core lies the idea of representing some expression that consists of algebraic symbols with arbitrary arguments (functors) and atomic symbols (variables), and thereafter apply rules to manipulate the symbolic expression. In other words match against patterns of a rule and then produce the corresponding result of the transformation. This can be done by either defining rules definitions that are bound to an identifier or applying in-line rules directly without first defining an identifier. See the the [how it works](#how-it-works) section, the [examples](#examples) and the [grammar](#grammar) for more details on the syntax.
+`raxio` is a domain specific language (DSL) that allows for symbolic pattern matching. At its core lies the idea of representing some expression consisting of algebraic symbols either by an identifier accompanied by a set of arbitrary sub-expression arguments (i.e., functors) or by an identifier acting as an atomic symbol (variables). Furthermore, rules can be defined that map a pattern to another pattern. Using these rules, a given expression can be transformed and manipulated with the goal of deriving some target expression or proving some mathematical form. Rules can either be bound to an identifier and called at a later point during the pattern matching sequence, or they can be defined directly on a given expression, which are denoted as in-line rules. Consider reading up on the [syntax](#syntax) and reviewing the [examples](#examples).
 
-Currently, the project is capable of assisting in simple mathematical proofs. However, it is not meant as a serious proof assistant, but rather, as a simple command line tool, which I created for recreational and educational purposes.
+I wrote this DSL purely for educational and recreational purposes. Even though `raxio` is capable of assisting in some mathematical proofs, as shown in the examples section, it is not meant as a serious tool with capabilities similar [Coq](https://github.com/coq/coq) or [Isabelle](https://isabelle.in.tum.de/). Nevertheless, `raxio` requires not much setup and its REPL environment provide the user with simple hands-on pattern matching. 
 
-The application is written in Rust and used via the command line interface. The components of `raxio` follow the typical interpreter pipeline, i.e., lexing the input text to obtain a stream of tokens, parsing the tokens into data structures that express statements, and interpreting the statements to manipulate the state in the runtime environment.
+The application is written in Rust and requires a command line interface. The components of `raxio` follow the typical interpreter pipeline, i.e., lexing the input text to obtain a stream of tokens, parsing the tokens into data structures that express statements, and interpreting the statements to manipulate the state in the runtime environment.
 
 ## Todo's
 - [x] Add in-fix math operators `+`, `-`, `*`, and `/`, during lexing and parsing that get translated to `add()`, `sub()`, `mul()`, and `div()`, respectively. Will help with readability. 
@@ -20,7 +20,7 @@ $ git clone https://github.com/Janko-dev/raxio
 $ cd raxio
 $ cargo build --release 
 ``` 
-go to `target/release/` and run the `raxio` executable. Either pass a filename as the argument to interpret the entire file or pass no arguments to enter the REPL (Read-Evaluate-Print-Loop) environment. 
+go to `target/release/` and run the `raxio` executable. Either pass a filename (with the convention of having the `.rx` extension) as the argument to interpret the entire file or pass no arguments to enter the REPL (Read-Evaluate-Print-Loop) environment.
 ```bash
 $ ./raxio [FILE_NAME] 
 ```
@@ -28,66 +28,106 @@ $ ./raxio [FILE_NAME]
 $ ./raxio
 Welcome to the REPL environment of raxio.
 Enter "quit" to stop the REPL environment.
+Enter "help" to see an overview of raxio syntax.
+Enter "undo" during mattern patching to undo the current expression.
 >
 ```
 
-## How it works
+## Syntax
 
-We can create an expression by either entering the name of an identifier, which will act as a variable, and thus start the pattern matching environment, or we can enter an identifier and subsequently provide a comma separated list of other expressions enclosed in parentheses. The latter is denoted as a functor. For example, the expression `f(x)` is a functor with identifier `f` and a single argument `x`. This form of expression is akin to the idea of an operator which performs some operation on the operands, i.e., on the arguments. 
+### Expressions
+Expressions are either symbolic words (variables), such as `foo_42`, `x`, `this_is_a_SYMBOL`, or they are symbolic words followed by a list of comma-separated expressions that are between parentheses (functors), such as `f(x)`, `foo(bar, baz(y))`, `print(x, y, z)`. The recursive nature of this definition allows for arbitrary complex expressions. The meaning of these symbols can thus also be arbitrary. `f(x)` could be a mathematical function that performs some set of operations on `x` to produce a value. `print(hello_world)` could be a procedure that manipulates the internal state by printing the contents of `hello_world` to the terminal. The aforementioned semantics are irrelevant in `raxio`. Instead, the focus is on the formal symbolic form of the expression. 
 
-This can be arbitrarily complex. For example, to denote the trivial expression $x^2$, we can choose to denote exponentiation as `pow(a, b)` where `a` is the base and `b` is the exponent. 
-
-The other, arguably more interesting part of this application, is the ability to pattern matchthe expressions that you create. The syntax to define a **rule** is as follows
+### Rules
+Being able to only define expressions is not that useful. Therefore, the syntax extends to be able to manipulate a given expression within a pattern matching context. This is denoted if an expression is entered in the REPL.
 ```bash
-def RULE_NAME as LEFT_HAND_SIDE_EXPR => RIGHT_HAND_SIDE_EXPR
+$ ./raxio
+Welcome to the REPL environment of raxio.
+Enter "quit" to stop the REPL environment.
+Enter "help" to see an overview of raxio syntax.
+Enter "undo" during mattern patching to undo the current expression.
+> f(x) 
+Start matching on: f(x)
+    ~>
 ```
-the `LEFT_HAND_SIDE_EXPR` will first be matched against the expression in question. If this succeeds, then the `RIGHT_HAND_SIDE_EXPR` will be used to produce the correct expression. As an example consider the simple the symbols `pair(A, B)`. We can define a rule to swap the values of `A` and `B`.
+The prompt (`~>`) is asking for either a predefined rule at some depth or an in-line rule at some depth, so that the expression `f(x)` can be matched and possibly transformed. Predefined rules can (surprisingly) also be defined inside a pattern matching context. For example, to define a rule `foo` that matches on th expession `f(a)` and transforms the expression into `g(a, a)`, enter the following in the REPL.
 ```bash
-def swap as pair(x, y) => pair(y, x) 
+def foo as f(a) => g(a, a)
 ```
-The rule is defined by the identifier `swap`. In the REPL, the following is thus derived. 
+To see the rule in action, apply it inside a pattern matching context accompanied with the depth level of the expression to match.
 ```bash
-> def swap as pair(x, y) => pair(y, x)
-> pair(A, B) 
-Start matching: pair(A, B)
-    ~> swap 0
-    pair(B, A)
-    ~> pair(x, y) => pair(y, x), 0
-    pair(A, B)
+> def foo as f(a) => g(a, a)
+> f(x) 
+Start matching on: f(x)
+    ~> apply foo at 0                   // defined rule at depth 0
+    g(x, x)
+    ~>
+```
+Here, the `at 0` indicates to match on the zero'th depth, which is the entire expression. In-line rules follow similar syntax without the binding to an identifier, such as `foo`. Consider the following to transform `g(x, x)` into `g(f(x), h(x))`.
+ ```bash
+> def foo as f(a) => g(a, a)
+> f(x) 
+Start matching on: f(x)
+    ~> apply foo at 0
+    g(x, x)
+    ~> g(a, a) => g(f(a), h(a)) at 0    // inline rule
+    g(f(x), h(x))
+    ~> apply foo at 1                   // defined rule at depth 1
+    g(g(x, x), h(x))
+    ~>
+```
+To end the pattern matching procedure, enter `end` followed by an optional string literal denoting a path, `"path/to/file.txt"`. The former just ends the pattern matching context, discarding the history of derivations, whereas the latter writes the derivation history to a specified file before discarding the history of derivations. 
+
+Furthermore, in the above example, the `foo` rule is again applied on the result of the in-line rule, `g(f(x), h(x))`, at depth 1 to obtain `g(g(x, x), h(x))`. This might clear up how the depth works, as the functors are depth-first searched for the provided depth value and only then mathed upon. 
+
+### Binary arithmetic operators
+To provide more readability for nested functor expressions, the standard math operators, `+`, `-`, `*`, and `/` are also parsed as infix functor operators with corresponding identifier names, `add()`, `sub()`, `mul()`, and `div()`, respectively. Furthermore, the parentheses `()` can be used to group expressions together, which have a higher precedence during parsing (just like typical arithmetic precedence). In other words, writing an expression `c * (a + b)` gets translated into the binary functor `mul(c, add(a, b))`. 
+
+```bash
+> def distributive_law as a * (b + c) => a * b + a * c
+> f(x) * (g(y) + h(z))
+Start matching on: f(x) * (g(y) + h(z))
+                   As functor: mul(f(x), group(add(g(y), h(z))))
+    ~> apply distributive_law at 0
+    f(x) * g(y) + f(x) * h(z)
+    As functor: add(mul(f(x), g(y)), mul(f(x), h(z)))
     ~> end
-Result: pair(B, A)
+Result: f(x) * g(y) + f(x) * h(z)
+        As functor: add(mul(f(x), g(y)), mul(f(x), h(z)))
 >
 ```
-
-After defining `swap`, we can start pattern matching by stating an expression, i.e., `pair(A, B)`. This will start an environment (prefixed by `~> `), which allows us to apply either defined rules (such as `swap`) or in-line rules. In the above, we apply swap and further specify a number, 0, which indicates the depth to match for patterns. Depth 0 indicates that we wish to match on the entire expression. The second application of a rule is an in-line rule, analogous to anonymous functions/lambda's in that these are executed in-line directly. The important note is that the depth is specified differentlty for predefined rules and in-line rules. In the former, simply provide some whitespace, and in the latter, it is necessary to provide a comma to seperate the right hand side expression from the depth value.
 
 ## Examples
 
 ### Power rule of calculus
 
 Consider the power rule of calculus 
-$$f(x) = x^n \rightarrow f'(x) = nx^{n-1}$$
-We can define the power rule as the following using functors.
+$$f(x) = x^n \implies f'(x) = nx^{n-1}$$
+We can define the power rule as the following rule.
 ```bash
-def diff_power_rule as pow(x, n) => mul(n, pow(x, sub(n, 1)))
+def diff_power_rule as pow(x, n) => n * pow(x, n-1)
 ```
 With this rule we can symbolically show that the derivative of $y^2$ is equal to $2y$.
 ```bash
 Welcome to the REPL environment of raxio.
 Enter "quit" to stop the REPL environment.
-> def diff_power_rule as pow(x, n) => mul(n, pow(x, sub(n, 1)))
-> def rule_2_minus_1 as sub(2, 1) => 1
-> def rule_pow_1 as pow(x, 1) => x
+Enter "help" to see an overview of raxio syntax.
+Enter "undo" during mattern patching to undo the current expression.
+> def diff_power_rule as pow(x, n) => n * pow(x, n-1)
 > pow(y, 2)
-Start matching: pow(y, 2)
-    ~> diff_power_rule 0
-    mul(2, pow(y, sub(2, 1)))
-    ~> rule_2_minus_1 2
-    mul(2, pow(y, 1))
-    ~> rule_pow_1 1
-    mul(2, y)
-    ~> end
-Result: mul(2, y)
+Start matching on: pow(y, 2)
+    ~> apply diff_power_rule at 0
+    2 * pow(y, 2 - 1)
+    As functor: mul(2, pow(y, sub(2, 1)))
+    ~> 2-1 => 1 at 2
+    2 * pow(y, 1)
+    As functor: mul(2, pow(y, 1))
+    ~> pow(x, 1) => x at 1
+    2 * y
+    As functor: mul(2, y)
+    ~> end 
+Result: 2 * y
+        As functor: mul(2, y)
 >
 ```
 
@@ -99,29 +139,36 @@ $$
     \lim_{h \to 0} \frac{f(x + h) - f(x)}{h}
 $$
 
-If we assume $f(x) = x^2$, then we can work this out to equal $f'(x) = 2x$. Using `raxio`, we can achieve the same systematically. Albeit, readability for this example is lacking.  
+If we assume $f(x) = x^2$, then we can work this out to equal $f'(x) = 2x$. Using `raxio`, we can achieve the same systematically.  
 
 ```bash
-> lim(h, 0, div(sub(f(add(x, h)), f(x)), h))
-Start matching: lim(h, 0, div(sub(f(add(x, h)), f(x)), h))
-    ~> f(x) => pow(x, 2), 3
-    lim(h, 0, div(sub(pow(add(x, h), 2), pow(x, 2)), h))
-    ~> pow(add(a, b), 2) => add(pow(a, 2), mul(2, a, b), pow(b, 2)), 3 
-    lim(h, 0, div(sub(add(pow(x, 2), mul(2, x, h), pow(h, 2)), pow(x, 2)), h))
-    ~> sub(add(a, b, c), d) => add(a, b, c, neg(d)), 2
-    lim(h, 0, div(add(pow(x, 2), mul(2, x, h), pow(h, 2), neg(pow(x, 2))), h))
-    ~> add(a, b, c, neg(a)) => add(b, c), 2
-    lim(h, 0, div(add(mul(2, x, h), pow(h, 2)), h))
-    ~> div(add(a, b), c) => add(div(a, c), div(b, c)), 1
-    lim(h, 0, add(div(mul(2, x, h), h), div(pow(h, 2), h)))
-    ~> div(pow(a, 2), a) => a, 2
-    lim(h, 0, add(div(mul(2, x, h), h), h))
-    ~> div(mul(2, b, a), a) => mul(2, b), 2
-    lim(h, 0, add(mul(2, x), h))
-    ~> lim(t, 0, add(a, t)) => a, 0
-    mul(2, x)
+> lim(h, 0, (f(x + h) - f(x)) / h)
+Start matching on: lim(h, 0, (f(x + h) - f(x)) / h)
+                   As functor: lim(h, 0, div(group(sub(f(add(x, h)), f(x))), h))
+    ~> f(a) => pow(a, 2) at 4
+    lim(h, 0, (pow(x + h, 2) - pow(x, 2)) / h)
+    As functor: lim(h, 0, div(group(sub(pow(add(x, h), 2), pow(x, 2))), h))
+    ~> pow(a + b, 2) => pow(a, 2) + 2 * a * b + pow(b, 2) at 4
+    lim(h, 0, (pow(x, 2) + 2 * x * h + pow(h, 2) - pow(x, 2)) / h)
+    As functor: lim(h, 0, div(group(sub(add(add(pow(x, 2), mul(mul(2, x), h)), pow(h, 2)), pow(x, 2))), h))
+    ~> a + b + c - a => b + c at 3
+    lim(h, 0, (2 * x * h + pow(h, 2)) / h)
+    As functor: lim(h, 0, div(group(add(mul(mul(2, x), h), pow(h, 2))), h))
+    ~> (a + b) / c => a/c + b/c at 1
+    lim(h, 0, 2 * x * h / h + pow(h, 2) / h)
+    As functor: lim(h, 0, add(div(mul(mul(2, x), h), h), div(pow(h, 2), h)))        
+    ~> a * b * c / c => a * b at 2   
+    lim(h, 0, 2 * x + pow(h, 2) / h)
+    As functor: lim(h, 0, add(mul(2, x), div(pow(h, 2), h)))
+    ~> pow(a, 2) / a => a at 2  
+    lim(h, 0, 2 * x + h)
+    As functor: lim(h, 0, add(mul(2, x), h))
+    ~> lim(t, 0, a + t) => a at 0
+    2 * x
+    As functor: mul(2, x)
     ~> end
-Result: mul(2, x)
+Result: 2 * x
+        As functor: mul(2, x)
 >
 ```
 

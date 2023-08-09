@@ -69,24 +69,25 @@ impl Env {
                     self.history.push(expr);
                     self.print_current_expr("Start matching on: ");
                 },
-                // If an expression is found while in pattern matching state.
-                (Stmt::ExprStmt(expr), true) => {
-                    // If the expression is a variable expression,
-                    // and the variable identifier is a rule, then pattern match on the rule.
-                    if let Expr::Variable { iden, depth: Some(d)} = expr {
-                        if self.rules.contains_key(&iden) {
-                            
-                            let (left, right) = self.rules.get(&iden).unwrap();
-                            self.history.push(ast_traverse_match(
-                                self.get_expr().unwrap().clone(), 
-                                &left, 
-                                &right,
-                                d,
-                            )?);
-                            self.print_current_expr("    ");
-                        }
-                    } else {
-                        return Err("Provide a valid and defined rule and a value for the depth to pattern match.".to_string());
+                (Stmt::ExprStmt(_), true) => {
+                    // Has no effect, might be good to provide a hint
+                },
+                (Stmt::ApplyStmt { .. }, false) => {
+                    // ERROR: Cannot apply rule outside of pattern matching context
+                },
+                // If an apply statement is found while in pattern matching state.
+                (Stmt::ApplyStmt { iden, depth }, true) => {
+                    // If variable identifier is a rule, then pattern match on the rule.
+                    if self.rules.contains_key(&iden) {
+                        
+                        let (left, right) = self.rules.get(&iden).unwrap();
+                        self.history.push(ast_traverse_match(
+                            self.get_expr().unwrap().clone(), 
+                            &left, 
+                            &right,
+                            depth,
+                        )?);
+                        self.print_current_expr("    ");
                     }
                 },
                 // Define statements can be constructed in either global or matching state.
@@ -108,6 +109,7 @@ impl Env {
                 (Stmt::RuleStmt { .. }, false) => {},
                 (Stmt::EndStmt(s), true) => { 
                     self.print_current_expr("Result: ");
+                    // write to file using s
                     self.history.clear();
                     self.is_matching = false;
                 },
@@ -153,7 +155,7 @@ fn match_patterns(current_expr: Expr, left: &Expr, right: &Expr) -> Result<Expr,
             if current.as_str() == lhs.as_str() {
                 Ok(right.clone())
             } else {
-                Ok(Expr::Variable { iden: current, depth: None })
+                Ok(Expr::Variable { iden: current })
             }
         },
         (Expr::Functor { iden: current_iden, args: current_args },
@@ -195,11 +197,11 @@ fn match_patterns(current_expr: Expr, left: &Expr, right: &Expr) -> Result<Expr,
         Expr::Variable { iden: lhs_iden, .. }) => {
             let mut new_args = vec![];
             for arg in current_args {
-                if let Expr::Variable { iden, depth } = arg {
+                if let Expr::Variable { iden } = arg {
                     if iden.as_str() == lhs_iden.as_str() {
                         new_args.push(right.clone());
                     } else {
-                        new_args.push(Expr::Variable { iden, depth });
+                        new_args.push(Expr::Variable { iden });
                     }
                 } else {
                     new_args.push(arg);
@@ -258,7 +260,7 @@ fn construct_rhs(right: &Expr, args_table: &HashMap<Expr, Expr>) -> Result<Expr,
             if let Some(new_arg) = args_table.get(right) {
                 Ok(new_arg.clone())
             } else {
-                Ok(Expr::Variable { iden: iden.clone(), depth: None })
+                Ok(Expr::Variable { iden: iden.clone() })
             }
         },
         Expr::Functor { iden, args } => {
@@ -298,6 +300,9 @@ fn find_binary_ops(expr: &Expr) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use std::error::Error;
+    use std::fs;
+
     use crate::lexer::*;
     use crate::parser::Parser;
     use super::*;
@@ -324,11 +329,50 @@ mod tests {
                 Some(&Expr::Functor { 
                     iden: "g".to_string(), 
                     args: vec![
-                        Expr::Functor { iden: "f".to_string(), args: vec![Expr::Variable { iden: "A".to_string(), depth: None }] },
-                        Expr::Functor { iden: "f".to_string(), args: vec![Expr::Variable { iden: "A".to_string(), depth: None }] }
+                        Expr::Functor { iden: "f".to_string(), args: vec![Expr::Variable { iden: "A".to_string() }] },
+                        Expr::Functor { iden: "f".to_string(), args: vec![Expr::Variable { iden: "A".to_string() }] }
                     ]
                 })
         );
+    }
 
+    #[test]
+    fn runtime_test_all_examples() -> Result<(), Box<dyn Error>>{
+        
+        let file_names = vec![
+            "swap_pair.rx".to_string(),
+            "peano.rx".to_string(),
+            "simple_power_rule_calculus.rx".to_string(),
+            "limit_power_rule_calculus.rx".to_string(),
+        ];
+        // let mut examples = vec![];
+        let path = "examples/".to_string();
+        for file_name in file_names {
+            let file_name = path.to_owned() + &file_name;
+            let input_string = fs::read_to_string(file_name)?;
+            
+            let mut lexer = Lexer::new();
+            lexer.lex(input_string.as_str());
+            
+            let mut parser = Parser::new();
+            let _ = parser.parse(&mut lexer);
+    
+            let mut env = Env::new();
+            let res = env.interpret(parser.stmts);
+    
+            assert!(res.is_ok());
+            // examples.push(env.)
+        }
+        Ok(())
+
+        // assert_eq!(env.get_expr(), 
+        //         Some(&Expr::Functor { 
+        //             iden: "g".to_string(), 
+        //             args: vec![
+        //                 Expr::Functor { iden: "f".to_string(), args: vec![Expr::Variable { iden: "A".to_string() }] },
+        //                 Expr::Functor { iden: "f".to_string(), args: vec![Expr::Variable { iden: "A".to_string() }] }
+        //             ]
+        //         })
+        // );
     }
 }

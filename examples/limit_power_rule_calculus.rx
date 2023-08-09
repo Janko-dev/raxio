@@ -1,19 +1,17 @@
-
-lim(h, 0, div(sub(f(add(x, h)), f(x)), h))
+lim(h, 0, (f(x + h) - f(x)) / h)
     
-    f(x) => pow(x, 2), 3
-
-    pow(add(x, h), 2) => add(pow(x, 2), mul(2, x, h), pow(h, 2)), 3
-
-    sub(add(a, b, c), d) => add(a, b, c, neg(d)), 2
-
-    add(a, b, c, neg(a)) => add(b, c), 2
-
-    div(add(a, b), c) => add(div(a, c), div(b, c)), 1
-
-    div(pow(a, 2), a) => a, 2
-
-    div(mul(2, b, a), a) => mul(2, b), 2
-
-    lim(t, 0, add(a, t)) => a, 0
+    f(a) => pow(a, 2) at 4
+    
+    pow(a + b, 2) => pow(a, 2) + 2 * a * b + pow(b, 2) at 4
+    
+    a + b + c - a => b + c at 3
+    
+    (a + b) / c => a/c + b/c at 1
+    
+    a * b * c / c => a * b at 2   
+    
+    pow(a, 2) / a => a at 2  
+    
+    lim(t, 0, a + t) => a at 0
+    
 end
