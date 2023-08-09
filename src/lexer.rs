@@ -245,7 +245,7 @@ impl Lexer {
                         Some('s') => { self.push_token(Token::As, &mut input_bytes); input_bytes.next(); },
                         Some('t') => { self.push_token(Token::At, &mut input_bytes); input_bytes.next(); },
                         Some(_) => { self.push_identifier(&mut input_bytes); },
-                        None => {} 
+                        None => { input_bytes.next(); }
                     } 
                 },
                 Some((_, 'a'..='z')) | Some((_, 'A'..='Z')) | Some((_, '_'))=> {
@@ -339,6 +339,8 @@ mod tests {
         let mut lexer = Lexer::new();
         lexer.lex(input_string);
 
+        dbg!(&lexer.errors);
+        
         assert!(lexer.errors.len() == 1);
         let e = lexer.errors.swap_remove(0);
         assert!(e.is::<LexError>());
@@ -358,7 +360,7 @@ mod tests {
         let input_string = "abc \"path ";
         let mut lexer = Lexer::new();
         lexer.lex(input_string);
-        dbg!(&lexer.errors);
+        
         assert!(lexer.errors.len() == 1);
         let e = lexer.errors.swap_remove(0);
         assert!(e.is::<LexError>());

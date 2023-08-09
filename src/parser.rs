@@ -13,7 +13,7 @@ pub enum Stmt {
     RuleStmt {left: Expr, right: Expr, depth: usize},
     DefineStmt {iden: String, left: Expr, right: Expr}, 
     ExprStmt(Expr),
-    EndStmt(String)
+    EndStmt(Option<String>)
 }
 
 #[derive(Debug)]
@@ -154,11 +154,14 @@ impl Parser{
     fn parse_end_stmt(&mut self, lexer: &mut Lexer) -> Result<(), Box<dyn Error>> {
         
         lexer.next();
-        expect!(Token::Path(_), "path".to_string(), lexer)?;
-        if let Some(Token::Path(s)) = lexer.peek(0) {
-            self.stmts.push(Stmt::EndStmt(s.to_owned()));
+        let path = if let Some(Token::Path(s)) = lexer.peek(0) {
+            let res = Some(s.to_owned());
             lexer.next();
-        }
+            res
+        } else {
+            None
+        };
+        self.stmts.push(Stmt::EndStmt(path));
         Ok(())
     }
 
@@ -426,7 +429,7 @@ mod tests {
 
         assert_eq!(
             parser.stmts[2], 
-            Stmt::EndStmt("hello world".to_string())
+            Stmt::EndStmt(Some("hello world".to_string()))
         );
     }
 
