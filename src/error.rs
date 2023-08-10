@@ -56,13 +56,6 @@ impl Display for ParsingError {
     }
 }
 
-// #[derive(Debug)]
-// pub enum RuntimeResult {
-//     Ok,
-//     Warn(Warning),
-//     Err(RuntimeError)
-// }
-
 
 #[derive(Debug)]
 pub enum Warning {
@@ -105,20 +98,3 @@ impl Display for Warning {
         }
     }
 }
-
-// #[derive(Debug)]
-// pub enum RuntimeError {
-//     PathNotFound(String),
-//     CannotWriteToPath(String),
-// }
-
-// impl Error for RuntimeError {}
-
-// impl Display for RuntimeError {
-//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//         match self {
-//             RuntimeError::CannotWriteToPath(s) => writeln!(f, "Runtime error: cannot write to file specified by path '{}'", s),
-//             RuntimeError::PathNotFound(s) => writeln!(f, "Runtime error: path to file not found, '{}'", s),
-//         }
-//     }
-// }

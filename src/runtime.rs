@@ -378,15 +378,14 @@ mod tests {
     fn runtime_test_all_examples() -> Result<(), Box<dyn Error>>{
         
         let file_names = vec![
-            "swap_pair.rx".to_string(),
-            "peano.rx".to_string(),
-            "simple_power_rule_calculus.rx".to_string(),
-            "limit_power_rule_calculus.rx".to_string(),
+            "swap_pair".to_string(),
+            "peano".to_string(),
+            "simple_power_rule_calculus".to_string(),
+            "limit_power_rule_calculus".to_string(),
         ];
-        // let mut examples = vec![];
         let path = "examples/".to_string();
-        for file_name in file_names {
-            let file_name = path.to_owned() + &file_name;
+        for file_name in file_names.iter() {
+            let file_name = path.to_owned() + file_name + ".rx";
             let input_string = fs::read_to_string(file_name)?;
             
             let mut lexer = Lexer::new();
@@ -400,18 +399,23 @@ mod tests {
             let res = env.interpret(parser.stmts);
     
             assert!(res.is_ok());
-            // examples.push(env.)
         }
-        Ok(())
 
-        // assert_eq!(env.get_expr(), 
-        //         Some(&Expr::Functor { 
-        //             iden: "g".to_string(), 
-        //             args: vec![
-        //                 Expr::Functor { iden: "f".to_string(), args: vec![Expr::Variable { iden: "A".to_string() }] },
-        //                 Expr::Functor { iden: "f".to_string(), args: vec![Expr::Variable { iden: "A".to_string() }] }
-        //             ]
-        //         })
-        // );
+        let path: String = "example_results/".to_string();
+        let test_results = vec![
+            "Result: pair(B, A)",
+            "Result: s(s(s(0)))",
+            "Result: 2 * y",
+            "Result: 2 * x"
+        ];
+        for (file_name, test_result) in file_names.iter().zip(test_results) {
+            
+            let file_name = path.to_owned() + file_name + ".txt";
+            let output_string = fs::read_to_string(file_name)?;
+            let res = output_string.lines().last().unwrap();
+            assert_eq!(res, test_result);
+        }
+
+        Ok(())
     }
 }

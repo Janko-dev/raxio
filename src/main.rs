@@ -12,17 +12,6 @@ mod error;
 
 fn main() {
 
-    // let a = vec![1, 3, 5, 7];
-    // let b = vec![(-2, 2), (-4, 4), (-6, 6)];
-
-    // let x = a.iter()
-    //     .zip(b.iter())
-    //     .map(|(e, (l, r))| {
-    //         format!("{}\n    After applying rule: {} => {}\n", e, l, r)
-    //     })
-    //     .collect::<String>();
-    // println!("{x}");
-
     let mut args: Vec<String> = env::args().collect();
 
     match args.len() {
@@ -140,7 +129,7 @@ fn start_repl() {
             }
             env.warnings.clear();
         }
-        
+
         if res.is_err() {
             println!("{}", res.unwrap_err());
             env.is_matching = false;
@@ -160,11 +149,11 @@ fn print_help() {
     println!("To start pattern matching an expression, use either");
     println!("    - a variable, e.g., x, foo, abc, etc.; or");
     println!("    - a functor, e.g., f(x), g(h(x, y)), foo(bar(baz)), etc.; or");
-    println!("    - binary mathematical in-fix operations, '+', '-', '*', '/'.");
+    println!("    - binary arithmetic in-fix operations, '+', '-', '*', '/'.");
     println!("      e.g., a + b (which gets translated to the functor add(a, b))\n");
     println!("To apply a rule during pattern matching of expession, enter either");
-    println!("    - predefined identifier of a rule followed a number indicating at which depth to apply the rule");
-    println!("      e.g., [YOUR_RULE_NAME] at [DEPTH]; or");
+    println!("    - predefined identifier of a rule followed by a number indicating at which depth to apply the rule");
+    println!("      e.g., apply [YOUR_RULE_NAME] at [DEPTH]; or");
     println!("    - an in-line rule without an identifier followed by a number indicating at which depth to apply the rule");
     println!("      e.g., [LEFT_EXPR] => [RIGHT_EXPR] at [DEPTH]\n");
 }
