@@ -175,25 +175,26 @@ Result: 2 * x
 Consider the following grammar that describes the syntax of `raxio` in a variant of [EBNF](https://en.wikipedia.org/wiki/Extended_Backus%E2%80%93Naur_form).
 
 ```ebnf
-Stmt         := Rule   | 
-                Define | 
+Stmt         := Define | 
+                Rule   | 
+                Apply  |
                 Expr   |
                 End    |
                 "quit" |
                 "undo" |
                 "help" ; 
 
-Rule         := Expr "=>" Expr "at" Number;
 Define       := "def" Identifier "as" Expr "=>" Expr ;
+Rule         := Expr "=>" Expr "at" Number;
+Apply        := "apply" Expr "at" Number ;   
 Expr         := FunctorExpr | 
                 VariableExpr ;
 End          := "end" Path ;
 
-Path         := "\"" ("/")? String ("/" String)* "\"" ;
-
 FunctorExpr  := Identifier "(" (Expr ",")* ")" ;
-VariableExpr := Identifier ("at" Number)?;
+VariableExpr := Identifier;
 
+Path         := "\"" ("/")? String ("/" String)* "\"" ;
 Number       := ("0"-"9") ("0"-"9")* ;
 Char         := ("a"-"z" | "A"-"Z" | "_" )
 String       := Char*
