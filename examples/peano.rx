@@ -5,4 +5,4 @@ def plus_s as s(x) => s(s(x))
     apply plus_0 at 0
     apply plus_s at 0
     apply plus_s at 0
-end
+end "example_results/peano.txt"

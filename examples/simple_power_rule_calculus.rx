@@ -1,10 +1,8 @@
 
-def diff_power_rule as pow(x, n) => mul(n, pow(x, sub(n, 1)))
-def rule_2_minus_1 as sub(2, 1) => 1
-def rule_pow_1 as pow(x, 1) => x
+def power_rule as pow(x, n) => n * pow(x, n-1)
 
 pow(y, 2)
-    apply diff_power_rule at 0
-    apply rule_2_minus_1 at 2
-    apply rule_pow_1 at 1
-end
+    apply power_rule at 0
+    2 - 1 => 1 at 2
+    pow(x, 1) => x at 1
+end "example_results/simple_power_rule_calculus.txt"

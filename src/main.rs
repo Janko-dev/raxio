@@ -10,9 +10,18 @@ mod parser;
 mod runtime;
 mod error;
 
-
-
 fn main() {
+
+    // let a = vec![1, 3, 5, 7];
+    // let b = vec![(-2, 2), (-4, 4), (-6, 6)];
+
+    // let x = a.iter()
+    //     .zip(b.iter())
+    //     .map(|(e, (l, r))| {
+    //         format!("{}\n    After applying rule: {} => {}\n", e, l, r)
+    //     })
+    //     .collect::<String>();
+    // println!("{x}");
 
     let mut args: Vec<String> = env::args().collect();
 
@@ -58,6 +67,13 @@ fn interpret_file(file_name: String) {
 
     let res = env.interpret(parser.stmts);
     
+    if env.warnings.len() > 0 {
+        for warn in env.warnings.iter() {
+            println!("{}", warn);
+        }
+        env.warnings.clear();
+    }
+
     if res.is_err() {
         println!("{}", res.unwrap_err());
     }
@@ -117,6 +133,14 @@ fn start_repl() {
         }
 
         let res = env.interpret(parser.stmts);
+
+        if env.warnings.len() > 0 {
+            for warn in env.warnings.iter() {
+                println!("{}", warn);
+            }
+            env.warnings.clear();
+        }
+        
         if res.is_err() {
             println!("{}", res.unwrap_err());
             env.is_matching = false;

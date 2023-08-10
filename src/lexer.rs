@@ -159,8 +159,8 @@ impl Lexer {
         }
         while let Some((_, c @ 'a'..='z')) |
                   Some((_, c @ 'A'..='Z')) |
-                  Some((_, c @ '_')) | 
                   Some((_, c @ '0'..='9')) | 
+                  Some((_, c @ '_')) | Some((_, c @ '.')) |
                   Some((_, c @ ' ')) | Some((_, c @ '\n')) |
                   Some((_, c @ '\t')) | Some((_, c @ '\r')) = input_bytes.peek() 
         {
@@ -174,8 +174,8 @@ impl Lexer {
             input_bytes.next();
             while let Some((_, c @ 'a'..='z')) |
                     Some((_, c @ 'A'..='Z')) |
-                    Some((_, c @ '_')) | 
                     Some((_, c @ '0'..='9')) |
+                    Some((_, c @ '_')) | Some((_, c @ '.')) |
                     Some((_, c @ ' ')) | Some((_, c @ '\n')) |
                     Some((_, c @ '\t')) | Some((_, c @ '\r')) = input_bytes.peek() 
             {

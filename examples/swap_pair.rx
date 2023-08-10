@@ -2,4 +2,4 @@ def swap as pair(x, y) => pair(y, x)
 
 pair(A, B) 
     apply swap at 0
-end
+end "example_results/swap_pair.txt"

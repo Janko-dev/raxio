@@ -14,4 +14,4 @@ lim(h, 0, (f(x + h) - f(x)) / h)
     
     lim(t, 0, a + t) => a at 0
     
-end
+end "example_results/limit_power_rule_calculus.txt"

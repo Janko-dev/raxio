@@ -1,0 +1,24 @@
+Start pattern matching on lim(h, 0, (f(x + h) - f(x)) / h)
+
+1. Applying rule: f(a) => pow(a, 2) at depth 4, results in:
+    lim(h, 0, (pow(x + h, 2) - pow(x, 2)) / h)
+
+2. Applying rule: pow(a + b, 2) => pow(a, 2) + 2 * a * b + pow(b, 2) at depth 4, results in:
+    lim(h, 0, (pow(x, 2) + 2 * x * h + pow(h, 2) - pow(x, 2)) / h)
+
+3. Applying rule: a + b + c - a => b + c at depth 3, results in:
+    lim(h, 0, (2 * x * h + pow(h, 2)) / h)
+
+4. Applying rule: (a + b) / c => a / c + b / c at depth 1, results in:
+    lim(h, 0, 2 * x * h / h + pow(h, 2) / h)
+
+5. Applying rule: a * b * c / c => a * b at depth 2, results in:
+    lim(h, 0, 2 * x + pow(h, 2) / h)
+
+6. Applying rule: pow(a, 2) / a => a at depth 2, results in:
+    lim(h, 0, 2 * x + h)
+
+7. Applying rule: lim(t, 0, a + t) => a at depth 0, results in:
+    2 * x
+
+Result: 2 * x

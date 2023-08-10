@@ -1,0 +1,6 @@
+Start pattern matching on pair(A, B)
+
+1. Applying rule: pair(x, y) => pair(y, x) at depth 0, results in:
+    pair(B, A)
+
+Result: pair(B, A)

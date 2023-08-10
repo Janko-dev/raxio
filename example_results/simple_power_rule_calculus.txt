@@ -1,0 +1,12 @@
+Start pattern matching on pow(y, 2)
+
+1. Applying rule: pow(x, n) => n * pow(x, n - 1) at depth 0, results in:
+    2 * pow(y, 2 - 1)
+
+2. Applying rule: 2 - 1 => 1 at depth 2, results in:
+    2 * pow(y, 1)
+
+3. Applying rule: pow(x, 1) => x at depth 1, results in:
+    2 * y
+
+Result: 2 * y

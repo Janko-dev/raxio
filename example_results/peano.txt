@@ -1,0 +1,12 @@
+Start pattern matching on 0
+
+1. Applying rule: 0 => s(0) at depth 0, results in:
+    s(0)
+
+2. Applying rule: s(x) => s(s(x)) at depth 0, results in:
+    s(s(0))
+
+3. Applying rule: s(x) => s(s(x)) at depth 0, results in:
+    s(s(s(0)))
+
+Result: s(s(s(0)))

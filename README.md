@@ -6,12 +6,6 @@ I wrote this DSL purely for educational and recreational purposes. Even though `
 
 The application is written in Rust and requires a command line interface. The components of `raxio` follow the typical interpreter pipeline, i.e., lexing the input text to obtain a stream of tokens, parsing the tokens into data structures that express statements, and interpreting the statements to manipulate the state in the runtime environment.
 
-## Todo's
-- [x] Add in-fix math operators `+`, `-`, `*`, and `/`, during lexing and parsing that get translated to `add()`, `sub()`, `mul()`, and `div()`, respectively. Will help with readability. 
-- [x] Maintain history of manipulated expressions with the corresponding applied rule, so that the history can be written to a file. 
-- [ ] Add string literal after end-statement indicating the path to write the derivation of the expression, i.e., to write the history. For example, the syntax would look like `end "path/to/file"`. 
-- [x] Review and evaluate the usability of the grammar.
-
 ## Usage
 To build the project, install [Rust/Cargo](https://www.rust-lang.org/tools/install) and run the following in the terminal. 
 
@@ -96,6 +90,11 @@ Result: f(x) * g(y) + f(x) * h(z)
         As functor: add(mul(f(x), g(y)), mul(f(x), h(z)))
 >
 ```
+
+## Todo's
+- [ ] add more control to pattern matching, not only at some depth but also some index of argument to match on, e.g., `x => y at 0, 2` where `2` indicates the second index at depth `0`.
+- [ ] add wildcard to match anything and everything at all depths, e.g., `x => y at *` or just permit the `at DEPTH` with `x => y` to match on all depths. 
+- [ ] write as latex math output when file extension of path in end-statement has `.tex`. 
 
 ## Examples
 
