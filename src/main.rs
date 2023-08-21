@@ -41,17 +41,16 @@ fn interpret_file(file_name: String) {
     let mut lexer = Lexer::new();
     lexer.lex(&input_string);
 
-    if lexer.errors.len() > 0 {
-        for err in lexer.errors.iter() {
-            println!("{}", err);
-        }
+    
+    for err in lexer.errors.iter() {
+        println!("{}", err);
     }
 
     let mut parser = Parser::new();
     let res = parser.parse(&mut lexer);
 
-    if res.is_err() {
-        println!("{}", res.unwrap_err());
+    if let Err(e) = res {
+        println!("{}", e);
     }
 
     let res = env.interpret(parser.stmts);
@@ -63,8 +62,8 @@ fn interpret_file(file_name: String) {
         env.warnings.clear();
     }
 
-    if res.is_err() {
-        println!("{}", res.unwrap_err());
+    if let Err(e) = res {
+        println!("{}", e);
     }
 }
 
@@ -83,28 +82,21 @@ fn start_repl() {
         io::stdout().flush().expect("Failed to flush stdout");
         io::stdin().read_line(&mut input_string).expect("Failed to read input line");
         
-        match &input_string.as_str() {
-            &"quit\r\n" | 
-            &"quit\n" | 
-            &"quit" => { break; },
-            &"help\r\n" | 
-            &"help\n" | 
-            &"help" => { print_help(); continue; },
-            &"undo\r\n" | 
-            &"undo\n" | 
-            &"undo" => { 
-                env.pop_expr();
-                continue;
-            },
-            _ => {}
-        }
-
+        let input_string = input_string.trim();
+        
         if input_string.len() == 0 {
             continue;
         }
+        
+        match input_string {
+            "quit" => { return; }, 
+            "help" => { print_help(); continue; },
+            "undo" => { env.pop_expr(); continue; },
+            _ => {}
+        }
 
         let mut lexer = Lexer::new();
-        lexer.lex(input_string.as_str());
+        lexer.lex(input_string);
         
         let mut parser = Parser::new();
         let res = parser.parse(&mut lexer);
@@ -116,8 +108,8 @@ fn start_repl() {
             continue;
         }
         
-        if res.is_err() {
-            println!("{}", res.unwrap_err());
+        if let Err(e) = res {
+            println!("{}", e);
             continue;
         }
 
@@ -130,10 +122,8 @@ fn start_repl() {
             env.warnings.clear();
         }
 
-        if res.is_err() {
-            println!("{}", res.unwrap_err());
-            env.is_matching = false;
-            continue;
+        if let Err(e) = res {
+            println!("{}", e);
         }
 
     }
